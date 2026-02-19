@@ -1,0 +1,12 @@
+{
+  "name": "merge-movies-marketplace",
+  "owner": { "name": "Merge Movies" },
+  "plugins": [{
+    "name": "merge-movies",
+    "source": "./",
+    "description": "Generate code walkthrough movies from git diffs using merge.mov",
+    "version": "1.0.0",
+    "category": "productivity",
+    "tags": ["video", "code-walkthrough", "movie"]
+  }]
+}

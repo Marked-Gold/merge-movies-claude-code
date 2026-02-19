@@ -1,0 +1,12 @@
+{
+  "name": "merge-movies",
+  "version": "1.0.0",
+  "description": "Generate code walkthrough movies from git diffs using merge.mov",
+  "author": {
+    "name": "Merge Movies"
+  },
+  "homepage": "https://merge.mov",
+  "repository": "https://github.com/Marked-Gold/merge-movies-claude-code",
+  "license": "MIT",
+  "keywords": ["code", "video", "git", "diff", "walkthrough", "movie"]
+}
