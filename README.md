@@ -1,6 +1,6 @@
 # Merge Movies — Claude Code Plugin
 
-Generate code walkthrough movies from git diffs using [merge.mov](https://merge.mov).
+Create and update code walkthrough movies using [merge.mov](https://merge.mov).
 
 ## Quick Start
 
@@ -25,32 +25,45 @@ claude --plugin-dir ./merge-movies-plugin
 export MERGE_MOVIES_API_KEY="mm_your_key_here"
 ```
 
-### Generate a Movie
+### Create a Movie
 
 ```
-/merge-movies:movie HEAD~3..HEAD
+/merge-movies:create-movie HEAD~3..HEAD
 ```
 
-## Usage
+### Update an Existing Movie
+
+```
+/merge-movies:update-movie my-movie-title
+```
+
+## Skills
+
+### `create-movie` — Create a new movie
 
 | Command | Description |
 |---------|-------------|
-| `/merge-movies:movie` | Interactive — prompts for what to include |
-| `/merge-movies:movie HEAD~5..HEAD` | From a commit range |
-| `/merge-movies:movie uncommitted` | From uncommitted changes |
-| `/merge-movies:movie feature-branch` | From branch changes vs main |
+| `/merge-movies:create-movie HEAD~5..HEAD` | From a commit range |
+| `/merge-movies:create-movie uncommitted` | From uncommitted changes |
+| `/merge-movies:create-movie feature-branch` | From branch changes vs main |
+| `/merge-movies:create-movie walkthrough auth` | Feature walkthrough |
+| `/merge-movies:create-movie architecture` | Architecture overview |
+| `/merge-movies:create-movie setup` | Setup / getting started guide |
+| `/merge-movies:create-movie` | Interactive / free-form |
 
-The skill will:
-1. Parse the git diff for the specified range
-2. Plan logical scenes from the changes
-3. Generate narration for each scene
-4. Create the movie via the merge.mov API
+### `update-movie` — Modify an existing movie
 
-View your movie at `https://studio.merge.mov/movie/{id}`.
+| Command | Description |
+|---------|-------------|
+| `/merge-movies:update-movie <movie-id>` | Update by movie ID |
+| `/merge-movies:update-movie <search term>` | Find by title and update |
+| `/merge-movies:update-movie` | List movies and pick one |
+
+The update skill supports adding, editing, reordering, and removing scenes, as well as updating metadata and code blocks.
 
 ## How It Works
 
-This plugin is a pure skill — no MCP server, no dependencies to install. The skill teaches Claude to call the [merge.mov REST API](https://merge.mov) directly using `curl`, creating movies with code views, slide views, terminal demos, and custom React animations.
+This plugin is a pure skill — no MCP server, no dependencies to install. The skills teach Claude to call the [merge.mov REST API](https://merge.mov) directly using `curl`, creating movies with code views, slide views, terminal demos, and custom React animations.
 
 ## License
 

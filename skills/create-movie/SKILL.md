@@ -1,23 +1,27 @@
-# Movie Generation Skill
+# Create Movie Skill
 
-Generate code walkthrough movies from git diffs using merge.mov.
+Create code walkthrough movies using merge.mov — from git diffs, feature walkthroughs, architecture overviews, setup guides, or free-form narratives.
 
 $ARGUMENTS
 
 ## Overview
 
-This skill helps you create engaging code walkthrough videos by:
-1. Parsing git diffs to understand code changes
-2. Planning logical scenes that tell a story
-3. Writing meaningful narration for each scene
-4. Using the merge.mov REST API to create the movie
+This skill creates engaging code walkthrough videos by:
+1. Determining the creation path from arguments
+2. Gathering source material (diffs, source files, docs)
+3. Planning logical scenes that tell a story
+4. Writing meaningful narration for each scene
+5. Using the merge.mov REST API to create the movie
 
 ## Usage
 
-- `/merge-movies:movie` - Interactive mode, prompts for what to include
-- `/merge-movies:movie HEAD~3..HEAD` - Generate from a commit range
-- `/merge-movies:movie uncommitted` - Generate from uncommitted changes
-- `/merge-movies:movie <branch>` - Generate from changes on a branch vs main
+- `/merge-movies:create-movie HEAD~3..HEAD` - From a commit range
+- `/merge-movies:create-movie uncommitted` - From uncommitted changes
+- `/merge-movies:create-movie <branch>` - From branch changes vs main
+- `/merge-movies:create-movie walkthrough <feature>` - Feature walkthrough
+- `/merge-movies:create-movie architecture` - Architecture overview
+- `/merge-movies:create-movie setup` - Setup / getting started guide
+- `/merge-movies:create-movie` - Interactive mode (free-form or guided)
 
 ## API Authentication
 
@@ -33,44 +37,88 @@ If the key is missing, tell the user to create one at https://studio.merge.mov/s
 
 ## Workflow
 
-### Step 1: Get the Git Diff
+### Step 1: Determine Creation Path
 
-Use bash to get the diff based on the user's request:
+Parse `$ARGUMENTS` to detect the creation mode:
+
+| Argument Pattern | Mode | Description |
+|-----------------|------|-------------|
+| `HEAD~N..HEAD`, `abc123..def456` | Git diff (commit range) | Diff between two commits |
+| `uncommitted` | Git diff (working tree) | Uncommitted changes vs HEAD |
+| `<branch-name>` (matches a git branch) | Git diff (branch) | Branch changes vs main |
+| `walkthrough <feature>` | Feature walkthrough | Explain how a feature works |
+| `architecture` | Architecture overview | Explore and explain the system |
+| `setup` | Setup guide | Document how to set up the project |
+| (no args or free text) | Free-form / interactive | Ask user what story to tell |
+
+If the mode is ambiguous, ask the user to clarify.
+
+### Step 2: Gather Source Material
+
+#### Git Diff Modes
 
 ```bash
 # For commit range
-git diff HEAD~3..HEAD
+git diff --name-status HEAD~3..HEAD   # scope first
+git diff HEAD~3..HEAD                 # full diff
 
 # For uncommitted changes
+git diff --name-status HEAD
 git diff HEAD
 
 # For branch comparison
+git diff --name-status main..feature-branch
 git diff main..feature-branch
-
-# With file names only first (to understand scope)
-git diff --name-status HEAD~3..HEAD
 ```
 
-### Step 2: Analyze the Changes
+#### Feature Walkthrough Mode
 
-Group changes into logical units:
-- **By feature**: Changes that implement a single feature together
-- **By file type**: Group related files (e.g., component + test + styles)
-- **By layer**: Backend changes, frontend changes, configuration
+1. Ask the user which feature to walk through (or infer from args)
+2. Use Glob/Grep to find relevant source files — entry points, key modules, tests
+3. Read each file to understand the implementation
+4. Map out the data/control flow through the feature
+5. Plan scenes that walk the viewer through how it works, not what changed
 
-Consider the narrative flow:
-- What problem is being solved?
-- What's the "before" state?
-- How does the solution work?
-- What's the end result?
+#### Architecture Overview Mode
 
-### Step 3: Plan Scenes
+1. Explore the directory structure (`ls`, Glob for key patterns)
+2. Read entry points: `package.json`, `main.ts`, `app.ts`, config files
+3. Identify layers: API routes, services, data models, utilities
+4. Read representative files from each layer
+5. Plan scenes that build up from foundations to the full picture
 
-Create a scene outline before building. Good scenes:
-- Focus on one concept at a time
-- Build on previous scenes
-- Have clear transitions
-- Include enough context without overwhelming
+#### Setup Guide Mode
+
+1. Read README, CONTRIBUTING, package.json, Dockerfile, docker-compose, config files
+2. Identify prerequisites, install steps, environment variables, build commands
+3. Test commands if possible to capture realistic terminal output
+4. Plan scenes that walk through setup step-by-step
+
+#### Free-form / Interactive Mode
+
+1. Ask the user what story they want to tell
+2. Gather supporting code, files, or context based on their description
+3. Plan scenes collaboratively
+
+### Step 3: Analyze and Plan Scenes
+
+Create a scene outline before building. Group material into logical scenes:
+
+**For git diff modes:**
+- Group by feature, file type, or architectural layer
+- Consider the narrative: What problem? What solution? What result?
+
+**For walkthrough modes:**
+- Follow the execution flow: entry point -> core logic -> output
+- Build understanding progressively — introduce concepts before using them
+
+**For architecture modes:**
+- Start high-level (system diagram), drill into layers
+- Show how components connect to each other
+
+**For setup modes:**
+- Follow the chronological setup order
+- Show terminal commands alongside config files
 
 **Scene Duration Guidelines:**
 - Simple changes: 3-5 seconds per scene
@@ -91,7 +139,13 @@ Bad: "Here we see the addition of a new function called handleSubmit."
 
 Good: "The handleSubmit function validates user input before sending it to the API, preventing invalid data from reaching the server."
 
-### Step 5: Create the Movie
+### Step 5: Read Source Files for Code Scenes
+
+**Always read the actual source file** before creating code view scenes. The diff tells you which lines changed; the file gives you the content with proper surrounding context.
+
+For non-diff modes, read files to get the exact content for the lines you want to show.
+
+### Step 6: Create the Movie
 
 Use the REST API in order:
 
@@ -123,6 +177,8 @@ MOVIE_ID=$(echo "$MOVIE_RESPONSE" | jq -r '.id')
 echo "Movie created: https://studio.merge.mov/movie/$MOVIE_ID"
 ```
 
+For non-diff modes, omit `branch` and `commitRange` from metadata — just use `title`, `description`, and optionally `repository`.
+
 **Add scenes** (see Scene Types below for view structures):
 
 ```bash
@@ -145,6 +201,12 @@ curl -s -X POST "https://merge.mov/api/movies/$MOVIE_ID/scenes" \
 ```
 
 Use a mix of scene types for engaging movies: code views for implementation, slide views for title cards and summaries, react views for custom animations, and terminal views for CLI demos.
+
+### Step 7: Return the Studio URL
+
+```
+https://studio.merge.mov/movie/{MOVIE_ID}
+```
 
 ## Scene Types
 
@@ -338,7 +400,7 @@ The `code` field is the body of a React function component that must return JSX.
 - `React` — the React library
 - `useCurrentFrame()` — returns the current frame number (0-indexed)
 - `useVideoConfig()` — returns `{ fps, durationInFrames, width, height }` (standard: 30fps, 1920x1080)
-- `spring({ frame, fps, config? })` — physics-based animation (0→1). Config: damping, mass, stiffness, overshootClamping
+- `spring({ frame, fps, config? })` — physics-based animation (0->1). Config: damping, mass, stiffness, overshootClamping
 - `interpolate(value, inputRange, outputRange, options?)` — map a value between ranges. Options: `{ extrapolateLeft, extrapolateRight }` with `'clamp'|'extend'|'wrap'`
 - `Sequence` — render children only during a frame range. Props: `from`, `durationInFrames`
 - `Series` — sequential Sequence blocks. Children are `<Series.Sequence durationInFrames={n}>` elements
@@ -360,7 +422,7 @@ The `code` field is the body of a React function component that must return JSX.
 - All animation should be frame-driven (`useCurrentFrame`), not time-based or stateful
 - Use inline styles only — no CSS imports or className
 - Stagger animations by subtracting offsets: `interpolate(frame - 20, [0, 30], [0, 1], { extrapolateLeft: 'clamp' })`
-- `spring()` returns 0→1 by default — use for scale, translateY, opacity
+- `spring()` returns 0->1 by default — use for scale, translateY, opacity
 - The canvas is 1920x1080 at 30fps. A 5-second scene = 150 frames
 - Design for the full viewport — use `AbsoluteFill` as root and distribute elements across the full 1080px height
 
@@ -410,6 +472,8 @@ Display terminal sessions with animated command input and output.
 
 **Important:** If a commit modifies an existing file (adds lines, changes lines, or removes lines within it), use `modify` — not `add`. Most scenes in a typical movie should use `modify`.
 
+**For non-diff modes:** Use `context` for walkthrough/architecture scenes where you're showing existing code without changes. Use `add` only when showing newly created files.
+
 ## Code Context Guidelines
 
 When creating code view scenes, provide proper context so viewers can understand where changes occur in the source file. Without context, viewers see isolated changed lines and can't understand the surrounding code structure.
@@ -418,9 +482,9 @@ When creating code view scenes, provide proper context so viewers can understand
 
 1. **Always read the source file first** — Never paste raw diff hunks as content. Use the Read tool to get the actual file content. The diff tells you *which* lines changed; the file gives you the *content* including surrounding context.
 2. **Include 3-5 context lines before and after each change** — Viewers need to see what surrounds the changed code.
-3. **Show the enclosing structure** — When a change is inside a function, class, or block, include the function/class signature and closing brace. Use a separate lineRange for the header if it's far from the change, which creates a `⋮` gap separator.
+3. **Show the enclosing structure** — When a change is inside a function, class, or block, include the function/class signature and closing brace. Use a separate lineRange for the header if it's far from the change, which creates a `...` gap separator.
 4. **Content must contain ALL lines covered by lineRanges** — The number of lines in `content` must exactly equal the total number of lines spanned by all lineRanges.
-5. **Use `lineRanges` with actual source line numbers** — The renderer uses these to display correct line numbers and visual gap separators (`⋮`) between non-contiguous sections.
+5. **Use `lineRanges` with actual source line numbers** — The renderer uses these to display correct line numbers and visual gap separators (`...`) between non-contiguous sections.
 6. **Use multiple lineRanges for non-contiguous sections** — When showing a function header + a change deeper inside, use separate ranges.
 7. **Highlights reference actual line numbers** — The `lines` array in highlights must use real source file line numbers.
 
@@ -467,12 +531,6 @@ When creating code view scenes, provide proper context so viewers can understand
   }
 }
 ```
-
-In the good example, the renderer will:
-- Display lines 38-40 (function signature) with correct line numbers
-- Show a `⋮` gap separator between lines 40 and 44
-- Display lines 44-55 (context + change + context) with correct line numbers
-- Highlight lines 50-53 with yellow background
 
 ## Code View Animations
 
@@ -647,124 +705,10 @@ Control how scenes transition in and out using `startTransition` and `endTransit
 
 ## Scene Ordering Tips
 
-1. **Start with context** - Show what exists before changes
-2. **Introduce the problem** - Why is this change needed?
+1. **Start with context** - Title card, overview, or what exists before changes
+2. **Introduce the problem** - Why is this change/feature needed?
 3. **Show the solution** - Walk through the implementation
-4. **Demonstrate the result** - Tests, usage, or UI changes
-
-## Example: Full Movie Generation
-
-For a PR that adds user authentication:
-
-```bash
-# Step 1: Create the movie
-MOVIE_RESPONSE=$(curl -s -X POST "https://merge.mov/api/movies" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY" \
-  -d '{
-    "movie": {
-      "metadata": {
-        "title": "Add User Authentication",
-        "description": "JWT-based auth with route protection",
-        "repository": "acme/web-app",
-        "branch": "feature/auth",
-        "commitRange": { "from": "abc123", "to": "def456" }
-      },
-      "scenes": []
-    }
-  }')
-MOVIE_ID=$(echo "$MOVIE_RESPONSE" | jq -r '.id')
-
-# Scene 1: Title card (slide view)
-curl -s -X POST "https://merge.mov/api/movies/$MOVIE_ID/scenes" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY" \
-  -d '{
-    "narration": "In this PR, we add user authentication to the API using JWT tokens. Let'\''s walk through the changes.",
-    "startTransition": { "type": "fade", "duration": 0.5 },
-    "view": {
-      "type": "slide",
-      "elements": [
-        { "id": "title", "type": "text", "style": "title", "content": "User Authentication", "position": { "x": 10, "y": 25 } },
-        { "id": "subtitle", "type": "text", "style": "body", "content": "JWT tokens, password hashing, and route protection", "position": { "x": 10, "y": 45 } }
-      ]
-    }
-  }'
-
-# Scene 2: Architecture overview (slide view)
-curl -s -X POST "https://merge.mov/api/movies/$MOVIE_ID/scenes" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY" \
-  -d '{
-    "narration": "The authentication flow uses JWT tokens. The client sends credentials, receives a token, and includes it in subsequent requests.",
-    "startTransition": { "type": "fade", "duration": 0.3 },
-    "view": {
-      "type": "slide",
-      "elements": [
-        { "id": "title", "type": "text", "style": "title", "content": "Auth Flow", "position": { "x": 50, "y": 15 } },
-        { "id": "steps", "type": "text", "style": "bullet", "content": "Client sends credentials\nAPI verifies and returns JWT\nClient includes token in requests", "position": { "x": 10, "y": 40 }, "size": { "width": 80 } }
-      ]
-    }
-  }'
-
-# Scene 3: User model (code view with scroll + highlights)
-curl -s -X POST "https://merge.mov/api/movies/$MOVIE_ID/scenes" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY" \
-  -d '{
-    "narration": "First, we create the User model with bcrypt password hashing. The pre-save hook automatically hashes passwords before storing them.",
-    "view": {
-      "type": "code",
-      "layout": "single",
-      "codeBlocks": [{
-        "filePath": "src/models/user.ts",
-        "lineRanges": [{ "start": 1, "end": 45 }],
-        "changeType": "add",
-        "content": "// ... user model code (read from file) ..."
-      }],
-      "animations": {
-        "scroll": {
-          "id": "scroll1",
-          "linesPerSecond": 3,
-          "pauses": [
-            { "lineNumber": 12, "durationMs": 3000 },
-            { "lineNumber": 28, "durationMs": 2500 }
-          ]
-        },
-        "highlights": [
-          { "id": "h1", "lines": [12, 13, 14, 15], "color": "rgba(96, 165, 250, 0.3)" },
-          { "id": "h2", "lines": [28, 29, 30, 31, 32], "color": "rgba(244, 114, 182, 0.3)" }
-        ]
-      }
-    }
-  }'
-
-# Scene 4: Auth middleware (code view with highlights)
-curl -s -X POST "https://merge.mov/api/movies/$MOVIE_ID/scenes" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY" \
-  -d '{
-    "narration": "The auth middleware extracts the JWT from the Authorization header and attaches the decoded user to the request object.",
-    "endTransition": { "type": "fade", "duration": 0.5 },
-    "view": {
-      "type": "code",
-      "layout": "single",
-      "codeBlocks": [{
-        "filePath": "src/middleware/auth.ts",
-        "lineRanges": [{ "start": 1, "end": 25 }],
-        "changeType": "add",
-        "content": "// ... auth middleware code (read from file) ..."
-      }],
-      "animations": {
-        "highlights": [
-          { "id": "h1", "lines": [8, 9, 10], "color": "rgba(34, 211, 238, 0.3)" }
-        ]
-      }
-    }
-  }'
-
-echo "Movie ready: https://studio.merge.mov/movie/$MOVIE_ID"
-```
+4. **Demonstrate the result** - Tests, usage, terminal output, or UI changes
 
 ## REST API Reference
 
@@ -813,7 +757,7 @@ echo "Movie ready: https://studio.merge.mov/movie/$MOVIE_ID"
 
 ## Tips for Great Movies
 
-1. **Keep it focused** - One PR = one movie, don't try to cover too much
+1. **Keep it focused** - One topic per movie, don't try to cover too much
 2. **Tell a story** - Have a beginning, middle, and end
 3. **Show, don't just tell** - Let the code speak when possible
 4. **Use transitions** - Fade between unrelated scenes, cut between related ones
