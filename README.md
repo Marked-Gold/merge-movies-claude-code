@@ -18,7 +18,7 @@ claude --plugin-dir ./merge-movies-plugin
 ### Set Your API Key
 
 1. Sign up at [merge.mov](https://merge.mov)
-2. Go to [Settings](https://studio.merge.mov/settings) and create an API key
+2. Go to [Settings](https://merge.mov/settings) and create an API key
 3. Set the environment variable:
 
 ```bash

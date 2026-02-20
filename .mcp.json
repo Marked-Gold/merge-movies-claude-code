@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "merge-movies": {
+      "type": "http",
+      "url": "${MERGE_MOVIES_URL:-https://merge.mov}/api/mcp",
+      "headers": {
+        "X-API-Key": "${MERGE_MOVIES_API_KEY}"
+      }
+    }
+  }
+}

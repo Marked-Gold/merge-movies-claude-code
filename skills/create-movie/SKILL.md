@@ -11,7 +11,7 @@ This skill creates engaging code walkthrough videos by:
 2. Gathering source material (diffs, source files, docs)
 3. Planning logical scenes that tell a story
 4. Writing meaningful narration for each scene
-5. Using the merge.mov REST API to create the movie
+5. Using the merge.mov MCP tools to create the movie
 
 ## Usage
 
@@ -23,17 +23,33 @@ This skill creates engaging code walkthrough videos by:
 - `/merge-movies:create-movie setup` - Setup / getting started guide
 - `/merge-movies:create-movie` - Interactive mode (free-form or guided)
 
-## API Authentication
+## MCP Tools
 
-All API calls require the `MERGE_MOVIES_API_KEY` environment variable. Include it as a header on every request:
+This skill uses the `merge-movies` MCP server. All tools are available automatically — use them directly by name. Authentication is handled by the MCP transport via the `MERGE_MOVIES_API_KEY` environment variable.
 
-```bash
-curl -s -X GET "https://merge.mov/api/movies" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY"
-```
+If the key is missing, tell the user to create one at https://merge.mov/settings.
 
-If the key is missing, tell the user to create one at https://studio.merge.mov/settings.
+**Available tools:**
+
+| Tool | Description |
+|------|-------------|
+| `list_movies` | List all movies |
+| `get_movie` | Get a movie by ID with all scenes |
+| `create_movie` | Create a new movie |
+| `update_movie` | Update an existing movie (full replacement) |
+| `delete_movie` | Delete a movie |
+| `list_scenes` | List all scenes in a movie |
+| `get_scene` | Get a single scene |
+| `create_scene` | Create a new scene in a movie |
+| `update_scene` | Full replacement of a scene |
+| `patch_scene` | Partial update of a scene |
+| `delete_scene` | Delete a scene |
+| `reorder_scenes` | Reorder scenes within a movie |
+| `list_codeblocks` | List code blocks in a scene |
+| `get_codeblock` | Get a single code block |
+| `create_codeblock` | Create a code block in a scene |
+| `update_codeblock` | Update a code block |
+| `delete_codeblock` | Delete a code block |
 
 ## Workflow
 
@@ -147,65 +163,60 @@ For non-diff modes, read files to get the exact content for the lines you want t
 
 ### Step 6: Create the Movie
 
-Use the REST API in order:
+Use the MCP tools in order:
+
+1. **Create the movie** using `create_movie`:
 
 ```
-1. POST /api/movies              — Create the movie container
-2. POST /api/movies/:id/scenes   — Add scenes with narration and views
-3. POST /api/movies/:id/scenes/:sceneId/codeblocks — Add code blocks (optional, can be inline in the scene view)
-```
-
-**Create the movie:**
-
-```bash
-MOVIE_RESPONSE=$(curl -s -X POST "https://merge.mov/api/movies" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY" \
-  -d '{
-    "movie": {
-      "metadata": {
-        "title": "Add User Authentication",
-        "description": "JWT-based auth with route protection",
-        "repository": "acme/web-app",
-        "branch": "feature/auth",
-        "commitRange": { "from": "abc123", "to": "def456" }
-      },
-      "scenes": []
-    }
-  }')
-MOVIE_ID=$(echo "$MOVIE_RESPONSE" | jq -r '.id')
-echo "Movie created: https://studio.merge.mov/movie/$MOVIE_ID"
+create_movie({
+  movie: {
+    metadata: {
+      title: "Add User Authentication",
+      description: "JWT-based auth with route protection",
+      repository: "acme/web-app",
+      branch: "feature/auth",
+      commitRange: { from: "abc123", to: "def456" }
+    },
+    scenes: []
+  }
+})
+→ Returns { id, studioUrl }
 ```
 
 For non-diff modes, omit `branch` and `commitRange` from metadata — just use `title`, `description`, and optionally `repository`.
 
-**Add scenes** (see Scene Types below for view structures):
+2. **Add scenes** using `create_scene` (see Scene Types below for view structures).
 
-```bash
-curl -s -X POST "https://merge.mov/api/movies/$MOVIE_ID/scenes" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY" \
-  -d '{
-    "narration": "We update the user validation logic to check email format.",
-    "view": {
-      "type": "code",
-      "layout": "single",
-      "codeBlocks": [{
-        "filePath": "src/validators/user.ts",
-        "lineRanges": [{ "start": 15, "end": 28 }],
-        "changeType": "modify",
-        "content": "// The actual code content..."
+Always include a `title` — a short label (2-5 words) for the scene that appears in the timeline and scene list:
+
+```
+create_scene({
+  movieId: "<movie-id>",
+  scene: {
+    title: "Email Validation",
+    narration: "We update the user validation logic to check email format.",
+    view: {
+      type: "code",
+      layout: "single",
+      codeBlocks: [{
+        filePath: "src/validators/user.ts",
+        lineRanges: [{ start: 15, end: 28 }],
+        changeType: "modify",
+        content: "// The actual code content..."
       }]
     }
-  }'
+  }
+})
 ```
 
-Use a mix of scene types for engaging movies: code views for implementation, slide views for title cards and summaries, react views for custom animations, and terminal views for CLI demos.
+Use a mix of scene types for engaging movies: code views for implementation, terminal views for CLI demos, and **React views for most visual/explanatory scenes** (bullet lists, diagrams, overviews, architecture flows). Reserve slide views only for simple title cards and closing slides — for anything with animation, progressive reveal, or visual complexity, use React views instead.
 
 ### Step 7: Return the Studio URL
 
+Use the `studioUrl` returned by `create_movie` and prepend the base URL. Use `$MERGE_MOVIES_URL` if set, otherwise default to `https://merge.mov`.
+
 ```
-https://studio.merge.mov/movie/{MOVIE_ID}
+{MERGE_MOVIES_URL}{studioUrl}
 ```
 
 ## Scene Types
@@ -236,7 +247,9 @@ Display code with syntax highlighting. Layouts:
 
 ### Slide View Scenes
 
-Create title cards, bullet summaries, and visual diagrams with positioned elements on a dark canvas.
+**Use slide views only for simple title cards and closing/summary slides.** For bullet lists, diagrams, architecture flows, or anything that benefits from animation, use React views instead.
+
+Create simple title cards with positioned elements on a dark canvas.
 
 **Canvas details:**
 - Composition: 1920x1080 with 5% inset on all sides (effective area: 90% x 90%)
@@ -295,100 +308,10 @@ Shapes support `text`, `textColor`, and `textFontSize` for centered labels. Rect
 }
 ```
 
-**Example: Bullet list**
-
-```json
-{
-  "narration": "Here's what we'll cover in this walkthrough.",
-  "view": {
-    "type": "slide",
-    "elements": [
-      {
-        "id": "heading",
-        "type": "text",
-        "style": "title",
-        "content": "What Changed",
-        "position": { "x": 10, "y": 10 }
-      },
-      {
-        "id": "bullets",
-        "type": "text",
-        "style": "bullet",
-        "content": "New User model with password hashing\nJWT-based auth controller\nRoute protection middleware\nUpdated API routes",
-        "position": { "x": 10, "y": 30 },
-        "size": { "width": 80 }
-      }
-    ]
-  }
-}
-```
-
-**Example: Diagram with shapes**
-
-```json
-{
-  "narration": "The request flows from client through middleware to the API handler.",
-  "view": {
-    "type": "slide",
-    "elements": [
-      {
-        "id": "client-box",
-        "type": "rect",
-        "position": { "x": 5, "y": 35 },
-        "size": { "width": 20, "height": 15 },
-        "stroke": "#58a6ff",
-        "borderRadius": 8,
-        "text": "Client",
-        "textColor": "#ffffff",
-        "textFontSize": 24
-      },
-      {
-        "id": "arrow1",
-        "type": "line",
-        "position": { "x": 25, "y": 42 },
-        "endPosition": { "x": 35, "y": 42 },
-        "stroke": "#58a6ff"
-      },
-      {
-        "id": "middleware-box",
-        "type": "rect",
-        "position": { "x": 35, "y": 35 },
-        "size": { "width": 25, "height": 15 },
-        "stroke": "#58a6ff",
-        "borderRadius": 8,
-        "text": "Auth Middleware",
-        "textColor": "#ffffff",
-        "textFontSize": 24
-      },
-      {
-        "id": "arrow2",
-        "type": "line",
-        "position": { "x": 60, "y": 42 },
-        "endPosition": { "x": 70, "y": 42 },
-        "stroke": "#58a6ff"
-      },
-      {
-        "id": "api-box",
-        "type": "rect",
-        "position": { "x": 70, "y": 35 },
-        "size": { "width": 20, "height": 15 },
-        "stroke": "#58a6ff",
-        "borderRadius": 8,
-        "text": "API Handler",
-        "textColor": "#ffffff",
-        "textFontSize": 24
-      }
-    ]
-  }
-}
-```
-
 **Aesthetic tips:**
 - Stick to the dark theme palette: background `#0d1117`, white titles, `#e6edf3` body text, `#58a6ff` accents
 - Leave generous white space — don't pack elements to edges
-- Use `title` for headings, `body` for explanations, `bullet` for lists
 - Keep slides focused — one idea per slide
-- Position titles at `y: 10-20`, content below at `y: 30-50`
 
 ### React View Scenes
 
@@ -418,6 +341,34 @@ The `code` field is the body of a React function component that must return JSX.
 }
 ```
 
+**React views are the preferred scene type for all visual/explanatory content** — bullet lists, diagrams, architecture flows, feature overviews, and anything that isn't pure code or terminal output. They produce more engaging, animated scenes than static slides.
+
+**Example: Animated bullet list**
+
+```json
+{
+  "narration": "Here's what we'll cover in this walkthrough.",
+  "view": {
+    "type": "react",
+    "code": "const { useCurrentFrame, interpolate, AbsoluteFill } = scope;\nconst frame = useCurrentFrame();\n\nconst items = [\n  'New User model with password hashing',\n  'JWT-based auth controller',\n  'Route protection middleware',\n  'Updated API routes'\n];\n\nconst titleOpacity = interpolate(frame, [0, 20], [0, 1], { extrapolateRight: 'clamp' });\n\nreturn (\n  <AbsoluteFill style={{ padding: '96px 120px', backgroundColor: '#0d1117' }}>\n    <div style={{ opacity: titleOpacity, fontSize: 64, fontWeight: 700, color: '#ffffff', marginBottom: 48 }}>\n      What Changed\n    </div>\n    {items.map((item, i) => {\n      const delay = 20 + i * 15;\n      const opacity = interpolate(frame, [delay, delay + 15], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });\n      const translateX = interpolate(frame, [delay, delay + 15], [30, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });\n      return (\n        <div key={i} style={{ opacity, transform: `translateX(${translateX}px)`, fontSize: 28, color: '#e6edf3', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 16 }}>\n          <span style={{ color: '#58a6ff', fontSize: 24 }}>&#x2022;</span>\n          {item}\n        </div>\n      );\n    })}\n  </AbsoluteFill>\n);",
+    "backgroundColor": "#0d1117"
+  }
+}
+```
+
+**Example: Architecture diagram with animated flow**
+
+```json
+{
+  "narration": "The request flows from client through middleware to the API handler.",
+  "view": {
+    "type": "react",
+    "code": "const { useCurrentFrame, interpolate, spring, useVideoConfig, AbsoluteFill } = scope;\nconst frame = useCurrentFrame();\nconst { fps } = useVideoConfig();\n\nconst boxes = [\n  { label: 'Client', color: '#58a6ff', x: 160 },\n  { label: 'Auth Middleware', color: '#d2a8ff', x: 600 },\n  { label: 'API Handler', color: '#3fb950', x: 1100 }\n];\n\nreturn (\n  <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', backgroundColor: '#0d1117' }}>\n    <div style={{ fontSize: 48, fontWeight: 700, color: '#fff', position: 'absolute', top: 96 }}>\n      Request Flow\n    </div>\n    {boxes.map((box, i) => {\n      const delay = i * 20;\n      const scale = spring({ frame: frame - delay, fps, config: { damping: 200 } });\n      const opacity = interpolate(frame, [delay, delay + 10], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });\n      return (\n        <div key={i} style={{ position: 'absolute', left: box.x, top: 420, opacity, transform: `scale(${scale})`, border: `2px solid ${box.color}`, borderRadius: 12, padding: '24px 36px', color: box.color, fontSize: 24, fontWeight: 600 }}>\n          {box.label}\n        </div>\n      );\n    })}\n    {[0, 1].map(i => {\n      const arrowDelay = 10 + i * 20;\n      const opacity = interpolate(frame, [arrowDelay + 10, arrowDelay + 20], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });\n      const x = i === 0 ? 380 : 870;\n      return (\n        <div key={`arrow-${i}`} style={{ position: 'absolute', left: x, top: 446, opacity, color: '#58a6ff', fontSize: 32 }}>\n          &#x2192;\n        </div>\n      );\n    })}\n  </AbsoluteFill>\n);",
+    "backgroundColor": "#0d1117"
+  }
+}
+```
+
 **React view tips:**
 - All animation should be frame-driven (`useCurrentFrame`), not time-based or stateful
 - Use inline styles only — no CSS imports or className
@@ -425,6 +376,7 @@ The `code` field is the body of a React function component that must return JSX.
 - `spring()` returns 0->1 by default — use for scale, translateY, opacity
 - The canvas is 1920x1080 at 30fps. A 5-second scene = 150 frames
 - Design for the full viewport — use `AbsoluteFill` as root and distribute elements across the full 1080px height
+- Prefer React views over slide views for bullet lists, diagrams, architecture flows, and overviews
 
 ### Terminal View Scenes
 
@@ -710,58 +662,13 @@ Control how scenes transition in and out using `startTransition` and `endTransit
 3. **Show the solution** - Walk through the implementation
 4. **Demonstrate the result** - Tests, usage, terminal output, or UI changes
 
-## REST API Reference
-
-**Base URL:** `https://merge.mov`
-**Auth:** `X-API-Key: $MERGE_MOVIES_API_KEY` header on all requests
-**Content-Type:** `application/json`
-**Studio URL:** `https://studio.merge.mov/movie/{movieId}` (for viewing)
-
-### Movies
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/movies` | List all movies |
-| POST | `/api/movies` | Create movie — body: `{ id?, movie: { metadata, scenes } }` |
-| GET | `/api/movies/:id` | Get movie with all scenes |
-| PUT | `/api/movies/:id` | Update full movie — body: full movie object |
-| DELETE | `/api/movies/:id` | Delete movie |
-
-**Movie metadata fields:** `title` (required), `description` (required), `repository`, `branch`, `commitRange: { from?, to? }`
-
-### Scenes
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/movies/:movieId/scenes` | List scenes |
-| POST | `/api/movies/:movieId/scenes` | Create scene — body: `{ narration, view, ... }` |
-| GET | `/api/movies/:movieId/scenes/:sceneId` | Get scene |
-| PATCH | `/api/movies/:movieId/scenes/:sceneId` | Partial update — body: any scene fields |
-| PUT | `/api/movies/:movieId/scenes/:sceneId` | Full replace — body: complete scene |
-| DELETE | `/api/movies/:movieId/scenes/:sceneId` | Delete scene |
-| POST | `/api/movies/:movieId/scenes/reorder` | Reorder — body: `{ sceneIds: [...] }` |
-
-**Create scene fields:** `narration` (required), `view` (required), `id`, `title`, `timestamp`, `duration`, `startTransition`, `endTransition`
-
-### Code Blocks
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/movies/:movieId/scenes/:sceneId/codeblocks` | List code blocks |
-| POST | `/api/movies/:movieId/scenes/:sceneId/codeblocks` | Create — body: `{ filePath, lineRanges, changeType, ... }` |
-| GET | `/api/movies/:movieId/scenes/:sceneId/codeblocks/:blockId` | Get code block |
-| PUT | `/api/movies/:movieId/scenes/:sceneId/codeblocks/:blockId` | Update code block |
-| DELETE | `/api/movies/:movieId/scenes/:sceneId/codeblocks/:blockId` | Delete code block |
-
-**Create code block fields:** `filePath` (required), `lineRanges` (required), `changeType` (required), `id`, `name`, `parentId`, `content`, `lineOrder`
-
 ## Tips for Great Movies
 
 1. **Keep it focused** - One topic per movie, don't try to cover too much
 2. **Tell a story** - Have a beginning, middle, and end
 3. **Show, don't just tell** - Let the code speak when possible
 4. **Use transitions** - Fade between unrelated scenes, cut between related ones
-5. **Use slide views for context** - Title cards, bullet summaries, and diagrams make movies more engaging
+5. **Prefer React views for visual content** - Use React views for bullet lists, diagrams, architecture flows, and overviews. Only use slide views for simple title cards and closing slides.
 6. **Use animations for long files** - Scroll through large files instead of cramming everything
 7. **Time animations to narration** - Sync scroll pauses with what you're explaining
-8. **Mix scene types** - Alternate between code, slide, react, and terminal views to keep viewers engaged
+8. **Mix scene types** - Alternate between code, react, and terminal views to keep viewers engaged

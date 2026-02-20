@@ -9,7 +9,7 @@ $ARGUMENTS
 This skill helps you update existing movies by:
 1. Finding the target movie by ID or title search
 2. Fetching its current state (scenes, metadata)
-3. Making surgical updates via the REST API
+3. Making surgical updates via MCP tools
 4. Returning the studio URL for review
 
 ## Usage
@@ -18,53 +18,60 @@ This skill helps you update existing movies by:
 - `/merge-movies:update-movie <search term>` - Find a movie by title and update it
 - `/merge-movies:update-movie` - List recent movies and pick one
 
-## API Authentication
+## MCP Tools
 
-All API calls require the `MERGE_MOVIES_API_KEY` environment variable. Include it as a header on every request:
+This skill uses the `merge-movies` MCP server. All tools are available automatically — use them directly by name. Authentication is handled by the MCP transport via the `MERGE_MOVIES_API_KEY` environment variable.
 
-```bash
-curl -s -X GET "https://merge.mov/api/movies" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY"
-```
+If the key is missing, tell the user to create one at https://merge.mov/settings.
 
-If the key is missing, tell the user to create one at https://studio.merge.mov/settings.
+**Available tools:**
+
+| Tool | Description |
+|------|-------------|
+| `list_movies` | List all movies |
+| `get_movie` | Get a movie by ID with all scenes |
+| `create_movie` | Create a new movie |
+| `update_movie` | Update an existing movie (full replacement) |
+| `delete_movie` | Delete a movie |
+| `list_scenes` | List all scenes in a movie |
+| `get_scene` | Get a single scene |
+| `create_scene` | Create a new scene in a movie |
+| `update_scene` | Full replacement of a scene |
+| `patch_scene` | Partial update of a scene |
+| `delete_scene` | Delete a scene |
+| `reorder_scenes` | Reorder scenes within a movie |
+| `list_codeblocks` | List code blocks in a scene |
+| `get_codeblock` | Get a single code block |
+| `create_codeblock` | Create a code block in a scene |
+| `update_codeblock` | Update a code block |
+| `delete_codeblock` | Delete a code block |
 
 ## Workflow
 
 ### Step 1: Find the Target Movie
 
 **If arg looks like a UUID** (contains dashes, 32+ hex chars):
-```bash
-curl -s -X GET "https://merge.mov/api/movies/$MOVIE_ID" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY"
+
+```
+get_movie({ movieId: "<movie-id>" })
 ```
 
 **If arg is text** — list movies and match by title:
-```bash
-MOVIES=$(curl -s -X GET "https://merge.mov/api/movies" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY")
-echo "$MOVIES" | jq '.[] | { id, title: .metadata.title }'
+
+```
+list_movies({})
+→ Returns array of { id, title, updatedAt }
 ```
 
-**If no arg** — list movies and ask the user to pick:
-```bash
-curl -s -X GET "https://merge.mov/api/movies" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY" | jq '.[] | { id, title: .metadata.title }'
-```
+**If no arg** — list movies and ask the user to pick.
 
 ### Step 2: Fetch Current State
 
 Get the full movie with all scenes to understand what exists:
 
-```bash
-MOVIE=$(curl -s -X GET "https://merge.mov/api/movies/$MOVIE_ID" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY")
-echo "$MOVIE" | jq '.scenes[] | { id, title, narration: .narration[:60], viewType: .view.type }'
+```
+get_movie({ movieId: "<movie-id>" })
+→ Returns full movie with metadata, scenes, and code blocks
 ```
 
 Present a summary of existing scenes to the user: scene order, types, and narration snippets.
@@ -83,135 +90,142 @@ Ask the user what they want changed, or infer from conversation context. Common 
 
 ### Step 4: Make Surgical Updates
 
-Use the appropriate endpoint for each change:
-
 #### Update Movie Metadata
 
-```bash
-curl -s -X PUT "https://merge.mov/api/movies/$MOVIE_ID" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY" \
-  -d '{ full movie object with updated metadata }'
+Use `update_movie` with the full movie object including updated metadata:
+
+```
+update_movie({ movieId: "<movie-id>", movie: { ...fullMovieWithUpdatedMetadata } })
 ```
 
 #### Add a Scene
 
-```bash
-curl -s -X POST "https://merge.mov/api/movies/$MOVIE_ID/scenes" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY" \
-  -d '{
-    "narration": "New scene narration.",
-    "view": { "type": "slide", "elements": [...] }
-  }'
+Always include a `title` — a short label (2-5 words) for the scene:
+
+```
+create_scene({
+  movieId: "<movie-id>",
+  scene: {
+    title: "New Feature Overview",
+    narration: "New scene narration.",
+    view: { type: "slide", elements: [...] }
+  }
+})
 ```
 
 After adding, use reorder to place it in the correct position.
 
 #### Update a Scene (Partial)
 
-```bash
-curl -s -X PATCH "https://merge.mov/api/movies/$MOVIE_ID/scenes/$SCENE_ID" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY" \
-  -d '{
-    "narration": "Updated narration text."
-  }'
+```
+patch_scene({
+  movieId: "<movie-id>",
+  sceneId: "<scene-id>",
+  scene: { narration: "Updated narration text." }
+})
 ```
 
-PATCH only updates the fields you include — everything else stays unchanged.
+`patch_scene` only updates the fields you include — everything else stays unchanged.
 
 #### Replace a Scene (Full)
 
-```bash
-curl -s -X PUT "https://merge.mov/api/movies/$MOVIE_ID/scenes/$SCENE_ID" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY" \
-  -d '{
-    "narration": "Completely new scene.",
-    "view": { "type": "code", "layout": "single", "codeBlocks": [...] }
-  }'
+```
+update_scene({
+  movieId: "<movie-id>",
+  sceneId: "<scene-id>",
+  scene: {
+    narration: "Completely new scene.",
+    view: { type: "code", layout: "single", codeBlocks: [...] },
+    timestamp: 0
+  }
+})
 ```
 
 #### Delete a Scene
 
-```bash
-curl -s -X DELETE "https://merge.mov/api/movies/$MOVIE_ID/scenes/$SCENE_ID" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY"
+```
+delete_scene({ movieId: "<movie-id>", sceneId: "<scene-id>" })
 ```
 
 #### Reorder Scenes
 
-```bash
-curl -s -X POST "https://merge.mov/api/movies/$MOVIE_ID/scenes/reorder" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY" \
-  -d '{ "sceneIds": ["scene-3", "scene-1", "scene-2"] }'
+```
+reorder_scenes({
+  movieId: "<movie-id>",
+  sceneIds: ["scene-3", "scene-1", "scene-2"]
+})
 ```
 
 #### Manage Code Blocks
 
-```bash
-# Add a code block to a scene
-curl -s -X POST "https://merge.mov/api/movies/$MOVIE_ID/scenes/$SCENE_ID/codeblocks" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY" \
-  -d '{
-    "filePath": "src/new-file.ts",
-    "lineRanges": [{ "start": 1, "end": 20 }],
-    "changeType": "add",
-    "content": "// file content..."
-  }'
+```
+// Add a code block
+create_codeblock({
+  movieId: "<movie-id>",
+  sceneId: "<scene-id>",
+  block: {
+    filePath: "src/new-file.ts",
+    lineRanges: [{ start: 1, end: 20 }],
+    changeType: "add",
+    content: "// file content..."
+  }
+})
 
-# Update a code block
-curl -s -X PUT "https://merge.mov/api/movies/$MOVIE_ID/scenes/$SCENE_ID/codeblocks/$BLOCK_ID" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY" \
-  -d '{
-    "filePath": "src/file.ts",
-    "lineRanges": [{ "start": 10, "end": 30 }],
-    "changeType": "modify",
-    "content": "// updated content..."
-  }'
+// Update a code block
+update_codeblock({
+  movieId: "<movie-id>",
+  sceneId: "<scene-id>",
+  blockId: "<block-id>",
+  block: {
+    filePath: "src/file.ts",
+    lineRanges: [{ start: 10, end: 30 }],
+    changeType: "modify",
+    content: "// updated content...",
+    parentId: null
+  }
+})
 
-# Delete a code block
-curl -s -X DELETE "https://merge.mov/api/movies/$MOVIE_ID/scenes/$SCENE_ID/codeblocks/$BLOCK_ID" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $MERGE_MOVIES_API_KEY"
+// Delete a code block
+delete_codeblock({
+  movieId: "<movie-id>",
+  sceneId: "<scene-id>",
+  blockId: "<block-id>"
+})
 ```
 
 ### Step 5: Return the Studio URL
 
+Use the `studioUrl` returned by the API and prepend the base URL. Use `$MERGE_MOVIES_URL` if set, otherwise default to `https://merge.mov`.
+
 ```
-https://studio.merge.mov/movie/{MOVIE_ID}
+{MERGE_MOVIES_URL}{studioUrl}
 ```
 
 ## Common Update Patterns
 
 ### Rewrite narration for all scenes
 
-Fetch all scenes, iterate through them, PATCH each with updated narration.
+Fetch all scenes with `list_scenes`, iterate through them, `patch_scene` each with updated narration.
 
 ### Insert a scene at a specific position
 
-1. POST the new scene (it gets appended)
-2. GET all scene IDs in current order
+1. `create_scene` to add the new scene (it gets appended)
+2. `list_scenes` to get all scene IDs in current order
 3. Splice the new scene ID into the desired position
-4. POST reorder with the new order
+4. `reorder_scenes` with the new order
 
 ### Swap a code scene for a slide
 
-PUT the scene with a completely new view object — the old view is fully replaced.
+Use `update_scene` with a completely new view object — the old view is fully replaced.
 
 ### Add highlights to an existing code scene
 
-PATCH the scene, including the full `view.animations` object with the new highlights added.
+Use `patch_scene`, including the full `view.animations` object with the new highlights added.
 
 ### Update code to reflect new file content
 
 1. Read the updated source file
-2. PUT the code block with new `content` and `lineRanges`
+2. `update_codeblock` with new `content` and `lineRanges`
 3. Update any `highlights` that reference changed line numbers
 
 ## Scene Type Reference
@@ -257,9 +271,7 @@ PATCH the scene, including the full `view.animations` object with the new highli
   "theme": "generic | claude-code | codex",
   "inputAnimation": "type | fade | cut",
   "outputAnimation": "type | fade | cut",
-  "entries": [
-    { "id": "e1", "command": "npm test", "output": "Tests passed", "exitCode": 0 }
-  ]
+  "entries": [{ "id": "e1", "command": "npm test", "output": "Tests passed", "exitCode": 0 }]
 }
 ```
 
@@ -284,48 +296,3 @@ Scope provides: `React`, `useCurrentFrame`, `useVideoConfig`, `spring`, `interpo
 ```
 
 Types: `cut`, `fade`, `slide`, `zoom`
-
-## REST API Reference
-
-**Base URL:** `https://merge.mov`
-**Auth:** `X-API-Key: $MERGE_MOVIES_API_KEY` header on all requests
-**Content-Type:** `application/json`
-**Studio URL:** `https://studio.merge.mov/movie/{movieId}` (for viewing)
-
-### Movies
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/movies` | List all movies |
-| POST | `/api/movies` | Create movie — body: `{ id?, movie: { metadata, scenes } }` |
-| GET | `/api/movies/:id` | Get movie with all scenes |
-| PUT | `/api/movies/:id` | Update full movie — body: full movie object |
-| DELETE | `/api/movies/:id` | Delete movie |
-
-**Movie metadata fields:** `title` (required), `description` (required), `repository`, `branch`, `commitRange: { from?, to? }`
-
-### Scenes
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/movies/:movieId/scenes` | List scenes |
-| POST | `/api/movies/:movieId/scenes` | Create scene — body: `{ narration, view, ... }` |
-| GET | `/api/movies/:movieId/scenes/:sceneId` | Get scene |
-| PATCH | `/api/movies/:movieId/scenes/:sceneId` | Partial update — body: any scene fields |
-| PUT | `/api/movies/:movieId/scenes/:sceneId` | Full replace — body: complete scene |
-| DELETE | `/api/movies/:movieId/scenes/:sceneId` | Delete scene |
-| POST | `/api/movies/:movieId/scenes/reorder` | Reorder — body: `{ sceneIds: [...] }` |
-
-**Create scene fields:** `narration` (required), `view` (required), `id`, `title`, `timestamp`, `duration`, `startTransition`, `endTransition`
-
-### Code Blocks
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/movies/:movieId/scenes/:sceneId/codeblocks` | List code blocks |
-| POST | `/api/movies/:movieId/scenes/:sceneId/codeblocks` | Create — body: `{ filePath, lineRanges, changeType, ... }` |
-| GET | `/api/movies/:movieId/scenes/:sceneId/codeblocks/:blockId` | Get code block |
-| PUT | `/api/movies/:movieId/scenes/:sceneId/codeblocks/:blockId` | Update code block |
-| DELETE | `/api/movies/:movieId/scenes/:sceneId/codeblocks/:blockId` | Delete code block |
-
-**Create code block fields:** `filePath` (required), `lineRanges` (required), `changeType` (required), `id`, `name`, `parentId`, `content`, `lineOrder`
