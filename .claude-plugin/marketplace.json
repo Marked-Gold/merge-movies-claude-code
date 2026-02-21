@@ -1,6 +1,9 @@
 {
   "name": "merge-movies-marketplace",
   "owner": { "name": "Merge Movies" },
+  "metadata": {
+    "description": "Turn your coding work into video walkthroughs with merge.mov"
+  },
   "plugins": [{
     "name": "merge-movies",
     "source": "./",
