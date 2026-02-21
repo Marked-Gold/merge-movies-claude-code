@@ -377,6 +377,7 @@ The `code` field is the body of a React function component that must return JSX.
 - The canvas is 1920x1080 at 30fps. A 5-second scene = 150 frames
 - Design for the full viewport — use `AbsoluteFill` as root and distribute elements across the full 1080px height
 - Prefer React views over slide views for bullet lists, diagrams, architecture flows, and overviews
+- **Use literal Unicode characters, not escape sequences** — The `code` field is a string, so `\u2713` renders as the literal text `\u2713`, not a checkmark. Always paste the actual character (e.g. `✓`, `→`, `•`, `ℹ️`) directly into the code string
 
 ### Terminal View Scenes
 
