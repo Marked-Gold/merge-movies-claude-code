@@ -562,7 +562,7 @@ Place highlights inside `view.animations.highlights`:
 |-------|----------|-------------|
 | `id` | Yes | Highlight ID |
 | `lines` | Yes | Source line numbers to highlight (must be within code block's lineRanges) |
-| `targetBlockId` | No | Which code block (defaults to first) |
+| `targetBlockId` | No | Which code block to highlight (defaults to first). **Must match one of the code block IDs in the same request** — see warning below |
 | `color` | No | RGBA color string (default: yellow `rgba(255, 213, 79, 0.3)`) |
 | `startTimeMs` | No | Start time in ms from scene start (omit for whole scene) |
 | `endTimeMs` | No | End time in ms from scene start (omit for whole scene) |
@@ -575,6 +575,17 @@ Place highlights inside `view.animations.highlights`:
 > When using multiple `lineRanges` (e.g., `[{start: 3, end: 13}, {start: 54, end: 58}]`),
 > highlight `lines` must use **source file line numbers** (e.g., `[54, 55, 56]`), NOT content string
 > positions. The API validates this and will reject highlights referencing lines outside the declared ranges.
+
+> **Common Pitfall: targetBlockId must match a code block ID in the same request**
+>
+> When using `targetBlockId` on highlights (or scroll animations), the value **must exactly match**
+> one of the `id` fields you provide on the `codeBlocks` array in the same API call. The server
+> remaps all code block IDs to UUIDs internally — if a `targetBlockId` doesn't match any code block
+> ID in the request, the highlight will be **silently removed** and a warning returned.
+>
+> For example, if your code blocks use `"id": "left-block"` and `"id": "right-block"`, then
+> highlights must use `"targetBlockId": "left-block"` or `"targetBlockId": "right-block"`.
+> Using any other value (like `"cb-left"`) will cause the highlight to be dropped.
 
 **Preset colors:**
 - Yellow: `rgba(255, 213, 79, 0.3)` (default)

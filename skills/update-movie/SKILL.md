@@ -222,6 +222,8 @@ Use `update_scene` with a completely new view object — the old view is fully r
 
 Use `patch_scene`, including the full `view.animations` object with the new highlights added.
 
+> **Important:** If a highlight uses `targetBlockId`, it must match one of the code block IDs in the same request. Highlights with non-matching `targetBlockId` values are silently removed by the server. See the create-movie skill docs for details.
+
 ### Update code to reflect new file content
 
 1. Read the updated source file
