@@ -233,6 +233,9 @@ Use `patch_scene`, including the full `view.animations` object with the new high
 ## Scene Type Reference
 
 ### Code View
+
+**Note:** Modify blocks require diff format content — prefix added lines with `+`, removed lines with `-`, and leave context lines unprefixed. Highlights on diff lines automatically use green/red colors.
+
 ```json
 {
   "type": "code",
@@ -241,7 +244,7 @@ Use `patch_scene`, including the full `view.animations` object with the new high
     "filePath": "src/file.ts",
     "lineRanges": [{ "start": 1, "end": 30 }],
     "changeType": "modify | add | delete | context",
-    "content": "// actual file content"
+    "content": "// actual file content (use +/- diff format for modify blocks)"
   }],
   "animations": {
     "scroll": { "id": "s1", "linesPerSecond": 3, "pauses": [{ "lineNumber": 15, "durationMs": 2000 }] },
