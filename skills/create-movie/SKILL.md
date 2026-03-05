@@ -25,9 +25,7 @@ This skill creates engaging code walkthrough videos by:
 
 ## MCP Tools
 
-This skill uses the `merge-movies` MCP server. All tools are available automatically — use them directly by name. Authentication is handled by the MCP transport via the `MERGE_MOVIES_API_KEY` environment variable.
-
-If the key is missing, tell the user to create one at https://merge.mov/settings.
+This skill uses the `merge-movies` MCP server. All tools are available automatically — use them directly by name. Authentication is handled automatically via OAuth — on first use, a browser window opens for you to log in, and tokens are managed by Claude Code.
 
 **Available tools:**
 
@@ -185,6 +183,12 @@ create_movie({
 
 For non-diff modes, omit `branch` and `commitRange` from metadata — just use `title`, `description`, and optionally `repository`.
 
+**Portrait/Mobile videos:** To create a mobile-optimized video (1080x1920, 9:16), add `orientation: "portrait"` to the movie object. When creating portrait videos:
+- Do NOT use `side-by-side` code layout (use `stacked` or `single` instead)
+- React view code must target 1080x1920 canvas (use `useVideoConfig()` for dimensions)
+- Slide elements use percentages and adapt automatically
+- Terminal views work well in portrait without changes
+
 2. **Add scenes** using `create_scene` (see Scene Types below for view structures).
 
 Always include a `title` — a short label (2-5 words) for the scene that appears in the timeline and scene list:
@@ -322,7 +326,7 @@ The `code` field is the body of a React function component that must return JSX.
 **Available via scope:**
 - `React` — the React library
 - `useCurrentFrame()` — returns the current frame number (0-indexed)
-- `useVideoConfig()` — returns `{ fps, durationInFrames, width, height }` (standard: 30fps, 1920x1080)
+- `useVideoConfig()` — returns `{ fps, durationInFrames, width, height }` (landscape: 1920x1080 at 30fps, portrait: 1080x1920 at 30fps)
 - `spring({ frame, fps, config? })` — physics-based animation (0->1). Config: damping, mass, stiffness, overshootClamping
 - `interpolate(value, inputRange, outputRange, options?)` — map a value between ranges. Options: `{ extrapolateLeft, extrapolateRight }` with `'clamp'|'extend'|'wrap'`
 - `Sequence` — render children only during a frame range. Props: `from`, `durationInFrames`
@@ -374,7 +378,7 @@ The `code` field is the body of a React function component that must return JSX.
 - Use inline styles only — no CSS imports or className
 - Stagger animations by subtracting offsets: `interpolate(frame - 20, [0, 30], [0, 1], { extrapolateLeft: 'clamp' })`
 - `spring()` returns 0->1 by default — use for scale, translateY, opacity
-- The canvas is 1920x1080 at 30fps. A 5-second scene = 150 frames
+- The canvas is 1920x1080 (landscape) or 1080x1920 (portrait) at 30fps. A 5-second scene = 150 frames
 - Design for the full viewport — use `AbsoluteFill` as root and distribute elements across the full 1080px height
 - Prefer React views over slide views for bullet lists, diagrams, architecture flows, and overviews
 - **Use literal Unicode characters, not escape sequences** — The `code` field is a string, so `\u2713` renders as the literal text `\u2713`, not a checkmark. Always paste the actual character (e.g. `✓`, `→`, `•`, `ℹ️`) directly into the code string

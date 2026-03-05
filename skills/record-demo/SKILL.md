@@ -17,9 +17,7 @@ Scripts and videos are persisted in `.merge-movies/demos/` so they can be review
 
 ## MCP Tools
 
-This skill uses the `merge-movies` MCP server. All tools are available automatically. Authentication is handled by the MCP transport via the `MERGE_MOVIES_API_KEY` environment variable.
-
-If the key is missing, tell the user to create one at https://merge.mov/settings.
+This skill uses the `merge-movies` MCP server. All tools are available automatically. Authentication is handled automatically via OAuth — on first use, a browser window opens for you to log in, and tokens are managed by Claude Code.
 
 **Key tools for this skill:**
 
