@@ -321,6 +321,13 @@ Shapes support `text`, `textColor`, and `textFontSize` for centered labels. Rect
 
 Custom animated scenes using React/JSX with Remotion APIs.
 
+**Before writing React view code from scratch**, search the community template library for a matching starting point:
+1. Call `list_react_templates` with a relevant query or tags (e.g. `query: "diagram"`, `tags: ["architecture"]`)
+2. If a template fits, call `get_react_template` to get the full code
+3. Customize the template code for your scene's specific content (labels, colors, data)
+
+This saves time and produces higher-quality animations. Only write from scratch if no template is a close match.
+
 The `code` field is the body of a React function component that must return JSX. It receives a `scope` object containing Remotion APIs — destructure what you need at the top.
 
 **Available via scope:**

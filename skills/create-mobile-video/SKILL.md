@@ -153,6 +153,11 @@ create_scene({
 
 #### React View Scenes — REWRITE REQUIRED
 
+**Before writing React view code from scratch**, search the community template library for a matching starting point:
+1. Call `list_react_templates` with a relevant query or tags (e.g. `query: "diagram"`, `tags: ["portrait"]`)
+2. If a template fits, call `get_react_template` to get the full code
+3. Customize the template code for your scene's specific content
+
 **Use literal Unicode characters, not escape sequences** — The `code` field is a string, so `\u2713` renders as the literal text `\u2713`, not a checkmark. Always paste the actual character (e.g. `✓`, `→`, `↓`, `•`) directly into the code string.
 
 React views contain hardcoded layout code that assumes 1920x1080. **You must rewrite the React code** for portrait (1080x1920):
