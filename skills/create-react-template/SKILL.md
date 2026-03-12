@@ -75,6 +75,7 @@ The `code` field is the body of a React function component that receives a `scop
 - Stagger animations for visual interest (don't reveal everything at once)
 - Use `spring()` for organic motion, `interpolate()` for precise control
 - Leave generous whitespace — don't pack elements to edges
+- **Use the full viewport — both axes** — Content must fill the entire canvas, not cluster in the top half or one corner. Vertically: use `display: 'flex', flexDirection: 'column', justifyContent: 'center'` on the root `AbsoluteFill` to center content, or `justifyContent: 'space-between'` with padding to distribute across the full height. Horizontally: spread elements across the full width — cards in a row should span the available space with even gaps.
 - Make data items (labels, colors, counts) easy to customize by putting them in arrays/objects at the top
 
 ### Step 4: Create the Template
