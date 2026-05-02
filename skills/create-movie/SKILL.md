@@ -331,15 +331,20 @@ This saves time and produces higher-quality animations. Only write from scratch 
 The `code` field is the body of a React function component that must return JSX. It receives a `scope` object containing Remotion APIs — destructure what you need at the top.
 
 **Available via scope:**
-- `React` — the React library
-- `useCurrentFrame()` — returns the current frame number (0-indexed)
-- `useVideoConfig()` — returns `{ fps, durationInFrames, width, height }` (landscape: 1920x1080 at 30fps, portrait: 1080x1920 at 30fps)
-- `spring({ frame, fps, config? })` — physics-based animation (0->1). Config: damping, mass, stiffness, overshootClamping
-- `interpolate(value, inputRange, outputRange, options?)` — map a value between ranges. Options: `{ extrapolateLeft, extrapolateRight }` with `'clamp'|'extend'|'wrap'`
-- `Sequence` — render children only during a frame range. Props: `from`, `durationInFrames`
-- `Series` — sequential Sequence blocks. Children are `<Series.Sequence durationInFrames={n}>` elements
-- `AbsoluteFill` — full-screen absolutely-positioned container (1920x1080)
-- `Img` — Remotion's image component
+
+Core: `React`, `useCurrentFrame()`, `useVideoConfig()`, `spring({ frame, fps, config? })`, `interpolate(value, inputRange, outputRange, options?)`, `Easing` (easing curves), `interpolateColors(frame, inputRange, colorRange)`, `random(seed)` (deterministic), `Sequence`, `Series`, `AbsoluteFill`, `Loop`, `Freeze`, `Img`, `Video`, `AuthenticatedVideo`, `useAuthenticatedImage(url)`
+
+Shapes (`@remotion/shapes`): `Circle`, `Rect`, `Star`, `Triangle`, `Ellipse`, `Pie`, `Heart`, `Polygon` — SVG shapes with fill, stroke, and stroke-draw animation support
+
+Paths (`@remotion/paths`): `evolvePath(progress, path)` (animate path drawing 0->1), `getPointAtLength(path, length)`, `getLength(path)`, `interpolatePath(progress, path1, path2)` (morph between paths), `parsePath(d)`, `resetPath`, `scalePath`, `translatePath`, `getBoundingBox`, `getSubpaths`
+
+Noise (`@remotion/noise`): `noise2D(seed, x, y)`, `noise3D(seed, x, y, z)`, `noise4D(seed, x, y, z, w)` — Perlin noise (-1 to 1) for organic wave/particle effects
+
+Animation Utils (`@remotion/animation-utils`): `makeTransform([...transforms])` (compose CSS transforms safely), `interpolateStyles(frame, inputRange, styleRanges)` (interpolate entire style objects)
+
+Transitions (`@remotion/transitions`): `TransitionSeries` (like Series with transitions between children), `springTiming({ config? })`, `linearTiming({ durationInFrames })`, `transitionFade()`, `transitionSlide({ direction? })`, `transitionWipe({ direction? })`, `transitionFlip({ direction? })`, `transitionClockWipe()`
+
+Layout Utils (`@remotion/layout-utils`): `measureText({ text, fontFamily, fontSize })`, `fitText({ text, withinWidth, fontFamily })`
 
 ```json
 {

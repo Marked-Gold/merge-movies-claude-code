@@ -52,15 +52,70 @@ If a close match exists, call `get_react_template` to get the full code and use 
 The `code` field is the body of a React function component that receives a `scope` object with Remotion APIs.
 
 **Available via scope:**
+
+**Core Remotion:**
 - `React` — the React library
 - `useCurrentFrame()` — current frame number (0-indexed)
 - `useVideoConfig()` — returns `{ fps, durationInFrames, width, height }`
-- `spring({ frame, fps, config? })` — physics-based animation (0->1)
-- `interpolate(value, inputRange, outputRange, options?)` — map values between ranges
-- `Sequence` — render children during a frame range
-- `Series` — sequential Sequence blocks
-- `AbsoluteFill` — full-screen container
+- `spring({ frame, fps, config? })` — physics-based animation (0->1). Config: damping, mass, stiffness, overshootClamping
+- `interpolate(value, inputRange, outputRange, options?)` — map values between ranges. Options: `{ extrapolateLeft, extrapolateRight }` with `'clamp'|'extend'|'wrap'`
+- `Easing` — easing curves for interpolate: `Easing.bezier()`, `Easing.ease`, `Easing.inOut()`, etc.
+- `interpolateColors(frame, inputRange, colorRange)` — smooth color transitions (hex/rgb/rgba)
+- `random(seed)` — deterministic random number (0-1), safe for Remotion (same value per frame)
+- `Sequence` — render children during a frame range. Props: `from`, `durationInFrames`
+- `Series` — sequential Sequence blocks. Children: `<Series.Sequence durationInFrames={n}>`
+- `AbsoluteFill` — full-screen absolutely-positioned container
+- `Loop` — loop children for N iterations. Props: `durationInFrames`, `times`
+- `Freeze` — freeze animation at a specific frame. Props: `frame`
 - `Img` — Remotion image component
+- `Video` — Remotion video component
+- `AuthenticatedVideo` — video component with auth token support
+- `useAuthenticatedImage(url)` — returns authenticated image URL for private assets
+
+**Shapes** (`@remotion/shapes` — SVG shape components with built-in stroke animation):
+- `Circle` — Props: `radius`, `fill`, `stroke`, `strokeWidth`. All shapes support `strokeDasharray`/`strokeDashoffset` for draw-on animation
+- `Rect` — Props: `width`, `height`, `cornerRadius`, `fill`, `stroke`
+- `Star` — Props: `innerRadius`, `outerRadius`, `points`, `fill`, `stroke`
+- `Triangle` — Props: `length`, `direction`, `fill`, `stroke`
+- `Ellipse` — Props: `rx`, `ry`, `fill`, `stroke`
+- `Pie` — Props: `radius`, `progress` (0-1), `fill`, `closePath`
+- `Heart` — Props: `width`, `fill`, `stroke`
+- `Polygon` — Props: `radius`, `points`, `fill`, `stroke`
+
+**Paths** (`@remotion/paths` — SVG path animation):
+- `evolvePath(progress, path)` — returns `strokeDasharray` + `strokeDashoffset` to animate path drawing from 0 to 1
+- `getPointAtLength(path, length)` — get `{x, y}` coordinates at a distance along a path
+- `getLength(path)` — total length of an SVG path string
+- `interpolatePath(progress, path1, path2)` — morph between two SVG paths
+- `parsePath(d)` — parse an SVG path `d` string into instructions
+- `resetPath(path)` — translate a path so its bounding box starts at (0,0)
+- `scalePath(path, scaleX, scaleY?)` — scale a path
+- `translatePath(path, x, y)` — translate a path
+- `getBoundingBox(path)` — get `{x1, y1, x2, y2}` of a path
+- `getSubpaths(path)` — split compound path into individual subpaths
+
+**Noise** (`@remotion/noise` — Perlin noise for organic effects):
+- `noise2D(seed, x, y)` — 2D Perlin noise (-1 to 1). Use for flowing backgrounds, wave effects
+- `noise3D(seed, x, y, z)` — 3D noise (use frame as z for animated noise fields)
+- `noise4D(seed, x, y, z, w)` — 4D noise
+
+**Animation Utils** (`@remotion/animation-utils`):
+- `makeTransform([translateY(10), scale(1.5), rotate(45)])` — compose CSS transforms safely (avoids string interpolation bugs)
+- `interpolateStyles(frame, inputRange, { opacity: [0, 1], transform: ['scale(0)', 'scale(1)'] })` — interpolate entire style objects
+
+**Transitions** (`@remotion/transitions` — within-scene transitions between content):
+- `TransitionSeries` — like Series but with transitions between children. Children: `<TransitionSeries.Sequence>` and `<TransitionSeries.Transition>`
+- `springTiming({ config? })` — spring-based transition timing
+- `linearTiming({ durationInFrames })` — linear transition timing
+- `transitionFade()` — cross-fade presentation
+- `transitionSlide({ direction? })` — slide presentation. Direction: `'from-left'|'from-right'|'from-top'|'from-bottom'`
+- `transitionWipe({ direction? })` — wipe presentation
+- `transitionFlip({ direction? })` — 3D flip presentation
+- `transitionClockWipe()` — clock wipe presentation
+
+**Layout Utils** (`@remotion/layout-utils`):
+- `measureText({ text, fontFamily, fontSize, fontWeight? })` — returns `{ width, height }` of rendered text
+- `fitText({ text, withinWidth, fontFamily, fontWeight? })` — returns `{ fontSize }` that fits text within a width
 
 **Code rules:**
 - All animation must be frame-driven (`useCurrentFrame`), not time-based or stateful
