@@ -196,11 +196,13 @@ Use the full 1080px width for each box — make them prominent, not cramped.
 - Copy all other properties directly
 - **Consider whether the video scene adds value on mobile** — a small landscape video letterboxed inside a portrait frame may not be worth keeping. If the video content isn't essential, cut it.
 
-### Step 5: Transfer Transitions
+### Step 5: Transfer Transitions and Effects
 
 Copy startTransition and endTransition from each source scene. Consider:
 - **Faster transitions** — use 0.3s instead of 0.5s for fades. Mobile pacing should feel snappy.
 - **More cuts, fewer fades** — cut transitions (`"type": "cut"`) feel more energetic and are common in short-form video.
+
+Copy each scene's `effects` array as-is (effects are resolution-independent). If you shorten a scene, re-check any `startMs`/`endMs` so timed effects (e.g. a `shine` on the result beat) still land inside the new duration. See the create-movie skill's **Effects** section for the catalog.
 
 ### Step 6: Return the Studio URL
 

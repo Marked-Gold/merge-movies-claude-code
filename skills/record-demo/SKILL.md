@@ -144,6 +144,8 @@ create_scene({
 
 **Note:** `aspectRatio` should be `1.778` (16:9) to match the 1280x720 recording.
 
+**Optional polish:** video scenes support every scene effect, including the video-only ones (e.g. `colorGrade`, `glow`, `zoomBlur`). Add an `effects` array to the scene, e.g. `effects: [{ type: "colorGrade", params: { contrast: 1.1, vibrance: 0.2 } }, { type: "vignette", params: { amount: 0.4 } }]`. See the create-movie skill's **Effects** section.
+
 ### Step 7: Confirm
 
 Tell the user the demo video has been recorded and added to the movie. Provide the studio URL so they can preview it.

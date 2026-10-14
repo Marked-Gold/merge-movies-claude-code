@@ -85,6 +85,7 @@ Ask the user what they want changed, or infer from conversation context. Common 
 - **Update code blocks** (change file content, line ranges, highlights)
 - **Change view type** (e.g., swap a code scene for a slide)
 - **Update metadata** (title, description)
+- **Add, tweak, or remove visual effects** on a scene (light leak, vignette, film grain, etc.)
 
 ### Step 4: Make Surgical Updates
 
@@ -222,6 +223,36 @@ Use `patch_scene`, including the full `view.animations` object with the new high
 
 > **Important:** If a highlight uses `targetBlockId`, it must match one of the code block IDs in the same request. Highlights with non-matching `targetBlockId` values are silently removed by the server. See the create-movie skill docs for details.
 
+### Add, edit, or remove scene effects
+
+Effects live in the scene's `effects` array (see the **Effects** section of the create-movie skill for the catalog, presets, and taste guidance). Patching `effects` **replaces the whole array**, so always send the complete list you want to keep:
+
+1. `get_scene` to read the current `effects` (each has an `id`)
+2. Modify the array — append a new effect, change `params`/timing on an existing one (keep its `id`), or drop entries
+3. `patch_scene` with the full new array
+
+```
+// Add a shine sweep on the result beat, keeping the existing vignette
+patch_scene({
+  movieId: "<movie-id>",
+  sceneId: "<scene-id>",
+  scene: {
+    effects: [
+      { id: "<existing-vignette-id>", type: "vignette", params: { amount: 0.5 } },
+      { type: "shine", params: { intensity: 0.55 }, startMs: 4000, endMs: 6000 }
+    ]
+  }
+})
+
+// Remove all effects
+patch_scene({ movieId: "<movie-id>", sceneId: "<scene-id>", scene: { effects: [] } })
+```
+
+- To temporarily hide an effect without losing its settings, set `enabled: false`.
+- To apply a consistent look across the movie, `patch_scene` each scene with the same baseline array.
+- `update_scene` is a full replacement — include `effects` or the scene's effects are cleared.
+- Video-only effects (`colorGrade`, `tint`, `duotone`, `chromaticAberration`, `zoomBlur`, `glow`, `pixelate`, `crt`) only render on video scenes.
+
 ### Update code to reflect new file content
 
 1. Read the updated source file
@@ -287,7 +318,7 @@ Use `patch_scene`, including the full `view.animations` object with the new high
 }
 ```
 
-Scope provides: `React`, `useCurrentFrame`, `useVideoConfig`, `spring`, `interpolate`, `Sequence`, `Series`, `AbsoluteFill`, `Img`
+Scope provides: `React`, `useCurrentFrame`, `useVideoConfig`, `spring`, `interpolate`, `Sequence`, `Series`, `AbsoluteFill`, `Img`, `Video`, `Solid`, plus Remotion effect factories (`glow`, `vignette`, `lightLeak`, `blur`, ...) for the `effects` prop of `Img`/`Video`/`Solid` — see the create-movie skill for the full scope list.
 
 ## Transitions
 
@@ -299,3 +330,17 @@ Scope provides: `React`, `useCurrentFrame`, `useVideoConfig`, `spring`, `interpo
 ```
 
 Types: `cut`, `fade`, `slide`, `zoom`
+
+## Effects
+
+```json
+{
+  "effects": [
+    { "type": "vignette", "params": { "amount": 0.5 } },
+    { "type": "filmGrain", "params": { "amount": 0.22 } },
+    { "type": "lightLeak", "params": { "intensity": 0.65 }, "startMs": 0, "endMs": 2500, "fadeOutMs": 500 }
+  ]
+}
+```
+
+Max 8 per scene (1-3 recommended). Full catalog and presets: create-movie skill, **Effects** section.

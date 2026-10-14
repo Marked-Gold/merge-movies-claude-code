@@ -117,6 +117,28 @@ The `code` field is the body of a React function component that receives a `scop
 - `measureText({ text, fontFamily, fontSize, fontWeight? })` — returns `{ width, height }` of rendered text
 - `fitText({ text, withinWidth, fontFamily, fontWeight? })` — returns `{ fontSize }` that fits text within a width
 
+**Effects** (`@remotion/effects` — GPU pixel effects; pass them in the `effects` prop of `Img`, `Video` or `Solid` only, never on plain DOM elements):
+- `Solid` — a solid-color canvas that effects can draw on. Props: `width`, `height` (required, e.g. from `useVideoConfig()`), `color`, `effects`, `style`
+- Overlay-style (draw on a `Solid`): `lightLeak({ progress, hueShift?, seed? })`, `shine({ progress, angle?, coreIntensity?, haloIntensity? })`, `starburst({ rays, colors: [c1, c2], rotation?, smoothness? })`, `noise({ amount? })`, `scanlines({ amount?, spacing?, thickness?, offset? })`, `vignette({ amount?, radius?, feather?, color? })`, `linearGradientTint({ startColor?, endColor?, start?, end?, amount? })`
+- Image/video filters: `blur({ radius })`, `glow({ radius?, intensity?, threshold?, color? })`, `chromaticAberration({ amount?, angle? })`, `zoomBlur({ amount?, center? })`, `duotone({ darkColor?, lightColor?, threshold? })`, `pixelate({ blockSize? })`, `colorCorrection({ exposure?, contrast?, temperature?, tint?, saturation?, vibrance? })`, `saturation({ amount? })`, `hue({ degrees? })`, `tint({ color, amount? })`, `barrelDistortion({ amount? })`, `wave({ amplitude?, wavelength?, phase?, direction? })`
+- Effects are static per frame — animate them by computing params from `useCurrentFrame()` (e.g. `lightLeak({ progress: frame / durationInFrames })`, `scanlines({ offset: frame })`)
+
+```jsx
+const { Img, Solid, AbsoluteFill, useVideoConfig, useCurrentFrame, glow, vignette, lightLeak } = scope;
+const { width, height, durationInFrames } = useVideoConfig();
+const frame = useCurrentFrame();
+const imageUrl = scope.assets[0]?.url; // an image asset attached to the scene
+if (!imageUrl) return null;
+return (
+  <AbsoluteFill>
+    <Img src={imageUrl} effects={[glow({ radius: 24 }), vignette({ amount: 0.5 })]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+    <AbsoluteFill style={{ mixBlendMode: 'screen' }}>
+      <Solid width={width} height={height} color="#000000" effects={[lightLeak({ progress: frame / durationInFrames })]} />
+    </AbsoluteFill>
+  </AbsoluteFill>
+);
+```
+
 **Code rules:**
 - All animation must be frame-driven (`useCurrentFrame`), not time-based or stateful
 - Use inline styles only — no CSS imports or className

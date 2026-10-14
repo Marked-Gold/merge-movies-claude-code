@@ -346,6 +346,8 @@ Transitions (`@remotion/transitions`): `TransitionSeries` (like Series with tran
 
 Layout Utils (`@remotion/layout-utils`): `measureText({ text, fontFamily, fontSize })`, `fitText({ text, withinWidth, fontFamily })`
 
+Effects (`@remotion/effects`): `Solid` (a solid-color canvas: `<Solid width height color effects />`) plus effect factories `blur`, `vignette`, `lightLeak`, `noise`, `scanlines`, `shine`, `starburst`, `glow`, `chromaticAberration`, `zoomBlur`, `duotone`, `pixelate`, `colorCorrection`, `saturation`, `hue`, `tint`, `linearGradientTint`, `barrelDistortion`, `wave`. Effects only work through the `effects` prop of `Img`, `Video` or `Solid` (not on plain `div`s), e.g. `<Img src={url} effects={[glow({ radius: 24 }), vignette({ amount: 0.5 })]} />`. `lightLeak` and `shine` take a `progress` (0-1) you drive from the frame. For whole-scene effects, prefer the scene-level `effects` array (see [Effects](#effects)).
+
 ```json
 {
   "narration": "Welcome to the code walkthrough.",
@@ -683,6 +685,114 @@ Control how scenes transition in and out using `startTransition` and `endTransit
 | `slide` | For sequential steps or progression |
 | `zoom` | For drilling into details |
 
+## Effects
+
+Scenes can layer cinematic visual effects on top of the view with an optional `effects` array (max 8, applied in order): light leaks, vignette, film grain, scanlines, shine sweeps, starbursts, gradient tints, color filters, and video-only pixel effects. Effects preview live in Studio and render identically in the final video.
+
+```json
+{
+  "title": "Tests Pass",
+  "narration": "With the retry logic in place, the full suite goes green — including the flaky upload test.",
+  "view": { "type": "terminal", "..." : "..." },
+  "effects": [
+    { "type": "scanlines", "params": { "amount": 0.3 } },
+    { "type": "vignette", "params": { "amount": 0.5 } },
+    { "type": "shine", "params": { "intensity": 0.55 }, "startMs": 3000, "endMs": 5000 }
+  ]
+}
+```
+
+**Each effect object:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `type` | Yes | Effect type from the catalog below |
+| `params` | No | Effect parameters. Omitted params use defaults; out-of-range values are clamped |
+| `startMs` | No | Start time in ms from scene start (default: 0) |
+| `endMs` | No | End time in ms from scene start (default: end of scene) |
+| `fadeInMs` | No | Ease the effect in over this many ms |
+| `fadeOutMs` | No | Ease the effect out over this many ms |
+| `enabled` | No | `false` keeps the effect but hides it (default: `true`) |
+| `id` | No | Stable ID for editing (generated if omitted) |
+
+**Catalog** — overlays and filters work on every scene type; video-only effects need a canvas source and **only render on `video` scenes**:
+
+| Type | What it looks like | Key params (range, default) | Scope |
+|------|--------------------|-----------------------------|-------|
+| `lightLeak` | Warm film light leak that blooms across the frame and retracts over ~2s. Great on scene openers, reveals and celebratory moments; set startMs to time it to a beat. | `intensity` 0..1 (0.55), `duration` 0.5..10 s (2), `hueShift` 0..360 (0), `seed` 0..100 (3) | All scenes (overlay) |
+| `vignette` | Darkens the edges to pull focus toward the center. Subtle and cinematic; safe on any scene. | `amount` 0..1 (0.55), `radius` 0..1 (0.6), `feather` 0..1 (0.45), `color` color (#000000) | All scenes (overlay) |
+| `filmGrain` | Animated analog film grain. Adds texture and a cinematic, organic feel. | `amount` 0..1 (0.35), `animated` boolean (true) | All scenes (overlay) |
+| `scanlines` | CRT-style horizontal scanlines that slowly scroll. Retro, terminal and hacker vibes. | `amount` 0..1 (0.35), `spacing` 2..16 (4), `thickness` 1..8 (1), `speed` 0..200 (30) | All scenes (overlay) |
+| `shine` | A glossy light streak that sweeps across the frame once (~1.2s). Perfect for highlighting a result or a hero moment; set startMs to time it. | `intensity` 0..1 (0.6), `duration` 0.3..6 s (1.2), `angle` 0..180 (30), `width` 20..400 (160) | All scenes (overlay) |
+| `starburst` | Slowly rotating sunburst rays behind the content. Energetic and bold; use for titles, launches and wins. | `intensity` 0..1 (0.25), `rays` 4..48 (16), `color` color (#f59e0b), `rotationSpeed` -90..90 (8), `blend` screen/soft-light/overlay/color/multiply/normal (screen) | All scenes (overlay) |
+| `gradientTint` | Washes the scene in a two-color gradient. Use to give a movie a consistent brand color mood. | `amount` 0..1 (0.45), `startColor` color (#7c3aed), `endColor` color (#06b6d4), `angle` 0..360 (135), `blend` screen/soft-light/overlay/color/multiply/normal (soft-light) | All scenes (overlay) |
+| `blur` | Gaussian blur of the whole scene. Fade it in/out for a dreamy focus pull, or keep it subtle behind narration. | `radius` 0..60 (12) | All scenes (filter) |
+| `brightness` | Brighten (positive) or darken (negative) the scene. | `amount` -1..1 (0.15) | All scenes (filter) |
+| `contrast` | Increase (>1) or flatten (<1) contrast. | `amount` 0..3 (1.25) | All scenes (filter) |
+| `saturation` | Boost (>1) or mute (<1) colors. 0 is fully desaturated. | `amount` 0..3 (1.4) | All scenes (filter) |
+| `grayscale` | Removes color. Use for flashbacks, "before" states or a documentary look. | `amount` 0..1 (1) | All scenes (filter) |
+| `hue` | Rotates every color around the color wheel. Playful and surreal. | `degrees` -180..180 (90) | All scenes (filter) |
+| `invert` | Inverts colors (turns dark mode into light mode). Striking as a quick flash. | `amount` 0..1 (1) | All scenes (filter) |
+| `colorGrade` | Professional color correction: exposure, contrast, temperature, tint, saturation and vibrance in one pass. | `exposure` -2..2 (0), `contrast` 0.5..2 (1.1), `temperature` -1..1 (0.15), `tint` -1..1 (0), `saturation` 0..2 (1.1), `vibrance` -1..1 (0.2) | Video scenes only |
+| `tint` | Tints the footage toward a single color. | `color` color (#22d3ee), `amount` 0..1 (0.35) | Video scenes only |
+| `duotone` | Maps shadows and highlights to two colors. Bold, graphic, poster-like. | `darkColor` color (#1e1b4b), `lightColor` color (#f472b6), `threshold` 0..1 (0.35) | Video scenes only |
+| `chromaticAberration` | Splits RGB channels for a glitchy lens fringe. Use briefly for impact or a glitch aesthetic. | `amount` 0..40 (8), `angle` 0..360 (0) | Video scenes only |
+| `zoomBlur` | Radial motion blur rushing toward a point. Adds speed and punch. | `amount` 0..120 (40), `center` [x,y] 0..1 ([0.5, 0.5]) | Video scenes only |
+| `glow` | Blooms bright areas with a soft glow. Dreamy, neon, polished. | `intensity` 0..3 (1), `radius` 1..80 (24), `threshold` 0..1 (0.5), `color` color (#ffffff) | Video scenes only |
+| `pixelate` | Chunky pixel mosaic. Retro 8-bit look, or censor-style obscuring. | `blockSize` 1..64 (12) | Video scenes only |
+| `crt` | Bulges the image like an old CRT monitor. Pair with Scanlines for a full retro look. | `amount` 0..1 (0.25) | Video scenes only |
+
+Colors are hex strings (`"#f59e0b"`); `center` is `[x, y]` from 0 to 1. Animated effects (`lightLeak`, `shine`, `starburst`, `filmGrain`, `scanlines`) move on their own over their time window — `lightLeak` and `shine` play once, starting at `startMs` and lasting their `duration` param (2s / 1.2s by default), so use `startMs` to land them on the narration beat.
+
+**Presets** — copy-pasteable looks (the same ones offered in Studio):
+
+**Cinematic** — Vignette, fine grain and a touch of contrast.
+
+```json
+"effects": [{"type":"contrast","params":{"amount":1.12}},{"type":"vignette","params":{"amount":0.5,"radius":0.62,"feather":0.5}},{"type":"filmGrain","params":{"amount":0.22}}]
+```
+
+**Golden Hour** — Warm light leak with a soft amber wash.
+
+```json
+"effects": [{"type":"lightLeak","params":{"intensity":0.65,"hueShift":0}},{"type":"gradientTint","params":{"amount":0.3,"startColor":"#f97316","endColor":"#fde047","angle":120,"blend":"soft-light"}}]
+```
+
+**Retro CRT** — Rolling scanlines, grain and a heavy vignette.
+
+```json
+"effects": [{"type":"scanlines","params":{"amount":0.4,"spacing":4,"thickness":1,"speed":24}},{"type":"filmGrain","params":{"amount":0.25}},{"type":"vignette","params":{"amount":0.6,"radius":0.55,"feather":0.4}}]
+```
+
+**Neon Night** — Purple-cyan wash with punchy saturation.
+
+```json
+"effects": [{"type":"saturation","params":{"amount":1.35}},{"type":"gradientTint","params":{"amount":0.5,"startColor":"#7c3aed","endColor":"#06b6d4","angle":135,"blend":"soft-light"}},{"type":"vignette","params":{"amount":0.45}}]
+```
+
+**Flashback** — Black & white, dreamy blur-in and heavy grain.
+
+```json
+"effects": [{"type":"grayscale","params":{"amount":1}},{"type":"filmGrain","params":{"amount":0.4}},{"type":"vignette","params":{"amount":0.7}},{"type":"blur","params":{"radius":10},"fadeOutMs":800}]
+```
+
+**Hero Moment** — Rotating starburst plus a shine sweep. For launches and big wins.
+
+```json
+"effects": [{"type":"starburst","params":{"intensity":0.22,"rays":18,"color":"#f59e0b"}},{"type":"shine","params":{"intensity":0.55}},{"type":"vignette","params":{"amount":0.4}}]
+```
+
+**Taste guidance:**
+
+- **Less is more** — 1-3 effects per scene. Most code scenes need at most a subtle baseline; effects should support the story, not decorate every frame.
+- **Keep a consistent look** — pick one baseline (e.g. the Cinematic preset, or `vignette` + `filmGrain`) and reuse it across the movie, then add accents on specific moments.
+- **Motion effects mark moments** — use `lightLeak`, `shine` or `starburst` on openers, reveals and wins (title card, "tests pass", the final result), not on every scene.
+- **Cinematic baseline** — `filmGrain` (~0.2) + `vignette` (~0.5) is safe on anything.
+- **Terminal scenes** — `scanlines` (optionally with `vignette`) fits the CLI aesthetic.
+- **Video-only effects only on video scenes** — `colorGrade`, `tint`, `duotone`, `chromaticAberration`, `zoomBlur`, `glow`, `pixelate` and `crt` are ignored on code/slide/terminal/react scenes.
+- **Time effects to the narration beat** — use `startMs`/`endMs` to fire a `shine` when the narration reaches the result, and `fadeInMs`/`fadeOutMs` so filters ease in and out instead of popping.
+- **Keep code readable** — don't put heavy `blur`, `invert`, `hue` or strong tints on code the viewer must read. A `blur` that fades out in the first second (like Flashback) is fine.
+
 ## Scene Ordering Tips
 
 1. **Start with context** - Title card, overview, or what exists before changes
@@ -696,7 +806,8 @@ Control how scenes transition in and out using `startTransition` and `endTransit
 2. **Tell a story** - Have a beginning, middle, and end
 3. **Show, don't just tell** - Let the code speak when possible
 4. **Use transitions** - Fade between unrelated scenes, cut between related ones
-5. **Prefer React views for visual content** - Use React views for bullet lists, diagrams, architecture flows, and overviews. Only use slide views for simple title cards and closing slides.
-6. **Use animations for long files** - Scroll through large files instead of cramming everything
-7. **Time animations to narration** - Sync scroll pauses with what you're explaining
-8. **Mix scene types** - Alternate between code, react, and terminal views to keep viewers engaged
+5. **Use effects sparingly** - A consistent subtle baseline plus a motion accent (light leak, shine) on the big moments
+6. **Prefer React views for visual content** - Use React views for bullet lists, diagrams, architecture flows, and overviews. Only use slide views for simple title cards and closing slides.
+7. **Use animations for long files** - Scroll through large files instead of cramming everything
+8. **Time animations to narration** - Sync scroll pauses with what you're explaining
+9. **Mix scene types** - Alternate between code, react, and terminal views to keep viewers engaged
