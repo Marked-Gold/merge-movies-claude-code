@@ -48,6 +48,12 @@ This skill uses the `merge-movies` MCP server. All tools are available automatic
 | `create_codeblock` | Create a code block in a scene |
 | `update_codeblock` | Update a code block |
 | `delete_codeblock` | Delete a code block |
+| `list_reference_assets` | List the movie's cast (characters/objects/locations/styles) for consistent AI video |
+| `create_reference_asset` | Add a cast member, optionally AI-generating its reference image |
+| `list_video_models` | AI video models the user can use, with sizes, durations and **USD per second** |
+| `estimate_video_cost` | Price planned AI clips — nothing is generated or billed |
+| `generate_scene_video` | **Spends money.** Generate an AI clip for a video scene, capped at `maxCostUsd` |
+| `get_scene_video_status` | Poll a clip until it lands in the scene (`waitSeconds` blocks up to 50s) |
 
 ## Workflow
 
@@ -138,6 +144,49 @@ Create a scene outline before building. Group material into logical scenes:
 - Simple changes: 3-5 seconds per scene
 - Complex logic: 8-12 seconds per scene
 - Architecture overviews: 10-15 seconds
+- AI video clips: 4-8 seconds each — they are billed per second
+
+**Does the movie need AI video?** Marketing, launch and promo videos often want cinematic AI footage (a hero shot of someone using the product, an atmospheric opener, b-roll behind a tagline). Code walkthroughs, setup guides and architecture overviews almost never do — prefer code, terminal, React and screen-recording scenes, which are free. If AI video would help, follow Step 3b before writing anything.
+
+### Step 3b: AI Video Budget Check (only if the plan has AI clips)
+
+AI video is billed to the user's own provider account (fal.ai, Runway, …). **Never generate a clip the user hasn't approved the cost of.** Do this once, for the whole movie, before creating it:
+
+1. **Pick models** with `list_video_models`. Only `configured: true` providers can generate; the user's default is `isDefault: true`. Rules of thumb:
+   - Drafts / cheap b-roll: `gemini-omni-flash-1.1` at `360p`/`720p`, or `wan-3.0` at `480p`/`720p`
+   - Best quality per dollar: `wan-3.0` at `1080p`
+   - Hero shots: `kling-3.0-pro` or `seedance-2.5` (most expensive — use sparingly)
+   - Animating a screenshot or still (first frame): `minimax-h3` or `gemini-omni-flash-1.1`
+   - Match the movie: `16:9:*` sizes for landscape, `9:16:*` for `orientation: "portrait"`
+   - Leave `audio` off unless the clip needs its own sound — the movie has narration and music, and Kling charges 50% more for audio
+2. **Price the plan** with `estimate_video_cost`, one entry per AI clip, labelled with its scene:
+
+```
+estimate_video_cost({
+  clips: [
+    { label: "Scene 1 — opener", provider: "fal", model: "wan-3.0", size: "16:9:1080p", duration: 5 },
+    { label: "Scene 4 — hero shot", provider: "fal", model: "kling-3.0-pro", size: "16:9:1080p", duration: 8 }
+  ]
+})
+→ { clips: [{ label, usd, duration, size, usdPerSecond, warnings }, …], totalUsd, blockers, approximate }
+```
+
+   Durations snap **up** to what the model supports — use the returned `duration`/`size`, not your request. Fix any `blockers` (no API key → ask the user to add one in Settings → Video Generation; retired model → pick another) and re-estimate.
+3. **Propose the scene layout with costs** — every scene in order, so the user sees where the money goes:
+
+```
+| # | Scene | Type | AI clip (model · size · length) | Cost |
+|---|-------|------|----------------------------------|------|
+| 1 | Opener | AI video | Wan 3.0 · 16:9 1080p · 5s | $1.00 |
+| 2 | The problem | React | — | — |
+| 3 | Live demo | Screen recording | — | — |
+| 4 | Hero shot | AI video | Kling 3.0 Pro · 16:9 1080p · 8s | $0.90 |
+|   | **Total AI video** | | 13s | **$1.90** |
+```
+
+   Say if the total is approximate (`approximate: true` — token-billed models like Seedance) and mention a cheaper alternative when one exists (e.g. "$0.65 at 720p").
+4. **Ask for approval** with `AskUserQuestion` — options like "Approve $1.90", "Use the cheaper plan ($0.65)", "Skip AI video". Only an explicit approval of a dollar amount counts. If the user changes the plan, re-estimate and ask again.
+5. Remember each clip's approved `usd` — you'll pass it as `maxCostUsd` in Step 6.
 
 ### Step 4: Write Narration
 
@@ -215,6 +264,31 @@ create_scene({
 
 Use a mix of scene types for engaging movies: code views for implementation, terminal views for CLI demos, and **React views for most visual/explanatory scenes** (bullet lists, diagrams, overviews, architecture flows). Reserve slide views only for simple title cards and closing slides — for anything with animation, progressive reveal, or visual complexity, use React views instead.
 
+3. **Generate approved AI clips** (only after Step 3b approval). For each AI scene, create it as an empty video scene whose `duration` matches the clip, then generate into it:
+
+```
+create_scene({ movieId, scene: {
+  title: "Opener",
+  narration: "…",
+  duration: 5,
+  view: { type: "video", source: "", videoFit: "cover" }
+}})
+→ { id: "<scene-id>" }
+
+generate_scene_video({
+  movieId, sceneId: "<scene-id>",
+  prompt: "Slow dolly-in on a developer's desk at dawn, phone glowing with a minimal launcher UI, cinematic, shallow depth of field",
+  provider: "fal", model: "wan-3.0", size: "16:9:1080p", duration: 5,
+  maxCostUsd: 1.00          // the approved per-clip estimate
+})
+→ { jobId, status: "pending", estimate: { usd: 1.00, … } }
+```
+
+   - Pass exactly the provider/model/size/duration/audio you estimated. If the server's estimate exceeds `maxCostUsd` it refuses — **don't raise the cap yourself**; re-estimate and re-ask the user.
+   - Start all clips first (they run in parallel), then poll each with `get_scene_video_status({ movieId, sceneId, waitSeconds: 50 })` until `completed` (the clip is now the scene's video) or `failed`. Clips usually take 1–5 minutes.
+   - On `failed`, report the error and ask before retrying — a retry is billed again.
+   - Cast members (`create_reference_asset`) keep characters consistent: pass their ids as `referenceAssetIds`, and count their images in `referenceImageCount` when estimating.
+
 ### Step 7: Return the Studio URL
 
 Use the `studioUrl` returned by `create_movie` and prepend the base URL. Use `$MERGE_MOVIES_URL` if set, otherwise default to `https://merge.mov`.
@@ -222,6 +296,8 @@ Use the `studioUrl` returned by `create_movie` and prepend the base URL. Use `$M
 ```
 {MERGE_MOVIES_URL}{studioUrl}
 ```
+
+If the movie has AI clips, also report what was generated and the total estimated spend (sum of the `estimate.usd` values from `generate_scene_video`).
 
 ## Scene Types
 
