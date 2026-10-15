@@ -157,6 +157,8 @@ AI video is billed to the user's own provider account (fal.ai, Runway, …). **N
    - Best quality per dollar: `wan-3.0` at `1080p`
    - Hero shots: `kling-3.0-pro` or `seedance-2.5` (most expensive — use sparingly)
    - Animating a screenshot or still (first frame): `minimax-h3` or `gemini-omni-flash-1.1`
+   - Putting a real person, product or place into a new shot: a `referenceImageUse: "subject"` model — `gemini-omni-1.1-flash-reference` (Google key) or `gemini-omni-flash-1.1-reference` (fal), up to 7 images. First-frame models only animate their one image; they can't place someone in a new scene
+   - On a Google (`veo`) key, use `gemini-omni-1.1-flash` (the Veo 3.1 previews shut down 2026-10-22). It has no length parameter, so its `duration` is requested in the prompt and its price is `approximate`
    - Match the movie: `16:9:*` sizes for landscape, `9:16:*` for `orientation: "portrait"`
    - Leave `audio` off unless the clip needs its own sound — the movie has narration and music, and Kling charges 50% more for audio
 2. **Price the plan** with `estimate_video_cost`, one entry per AI clip, labelled with its scene:
@@ -288,6 +290,7 @@ generate_scene_video({
    - Start all clips first (they run in parallel), then poll each with `get_scene_video_status({ movieId, sceneId, waitSeconds: 50 })` until `completed` (the clip is now the scene's video) or `failed`. Clips usually take 1–5 minutes.
    - On `failed`, report the error and ask before retrying — a retry is billed again.
    - Cast members (`create_reference_asset`) keep characters consistent: pass their ids as `referenceAssetIds`, and count their images in `referenceImageCount` when estimating.
+   - On a "— Reference" Omni model, the cast images are `<IMAGE_REF_0>`, `<IMAGE_REF_1>`… in `referenceAssetIds` order; write the prompt around them, e.g. `"<IMAGE_REF_0> holds up a phone showing the launcher, office at golden hour"`.
 
 ### Step 7: Return the Studio URL
 
