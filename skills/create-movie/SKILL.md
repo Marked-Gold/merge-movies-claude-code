@@ -348,6 +348,8 @@ Layout Utils (`@remotion/layout-utils`): `measureText({ text, fontFamily, fontSi
 
 Effects (`@remotion/effects`): `Solid` (a solid-color canvas: `<Solid width height color effects />`) plus effect factories `blur`, `vignette`, `lightLeak`, `noise`, `scanlines`, `shine`, `starburst`, `glow`, `chromaticAberration`, `zoomBlur`, `duotone`, `pixelate`, `colorCorrection`, `saturation`, `hue`, `tint`, `linearGradientTint`, `barrelDistortion`, `wave`. Effects only work through the `effects` prop of `Img`, `Video` or `Solid` (not on plain `div`s), e.g. `<Img src={url} effects={[glow({ radius: 24 }), vignette({ amount: 0.5 })]} />`. `lightLeak` and `shine` take a `progress` (0-1) you drive from the frame. For whole-scene effects, prefer the scene-level `effects` array (see [Effects](#effects)).
 
+3D (`@remotion/three`): `ThreeCanvas` (`<ThreeCanvas width={width} height={height} camera={{ position: [0, 0, 6] }}>`), `THREE` (the three.js namespace) and `useThree`. Inside the canvas use R3F elements (`<mesh>`, `<boxGeometry />`, `<meshStandardMaterial />`, `<ambientLight />`, `<directionalLight />`). Animate only from `useCurrentFrame()` (`useFrame` isn't available), load nothing over the network (no GLTF, textures or 3D fonts; overlay text as DOM), and keep scenes modest because renders use software WebGL. See the create-react-template skill for a full example.
+
 ```json
 {
   "narration": "Welcome to the code walkthrough.",

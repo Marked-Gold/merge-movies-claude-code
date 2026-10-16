@@ -139,6 +139,38 @@ return (
 );
 ```
 
+**3D** (`@remotion/three` — React Three Fiber scenes, rendered with WebGL):
+- `ThreeCanvas` — a 3D canvas synced to the timeline. Props: `width`, `height` (required, from `useVideoConfig()`), `camera` (e.g. `{ position: [0, 0, 6], fov: 45 }`), `style`
+- Inside it, use R3F JSX elements: `<mesh>`, `<group>`, geometries (`<boxGeometry args={[w, h, d]} />`, `<sphereGeometry />`, `<torusKnotGeometry />`, `<icosahedronGeometry />`, `<cylinderGeometry />`, `<planeGeometry />`), materials (`<meshStandardMaterial color metalness roughness />`, `<meshBasicMaterial />`, `<meshPhysicalMaterial />`) and lights (`<ambientLight />`, `<directionalLight />`, `<pointLight />`, `<spotLight />`)
+- `THREE` — the three.js namespace (`new THREE.Color('#58a6ff')`, `THREE.Vector3`, `THREE.MathUtils`, `THREE.CatmullRomCurve3`, ...)
+- `useThree()` — read the camera/scene inside the canvas (only in a child component rendered within `ThreeCanvas`)
+- Animate only from `useCurrentFrame()` (rotation, position, scale props). `useFrame` is not available: it is clock-driven and would break renders
+- No loaders: no `useLoader`, GLTF models, textures from URLs or 3D text fonts. Build shapes from geometries and put text in a DOM layer over the canvas
+- Renders use software WebGL, so keep scenes modest: a few dozen meshes, at most ~4 lights, no shadows or post-processing
+
+```jsx
+const { ThreeCanvas, THREE, AbsoluteFill, useCurrentFrame, useVideoConfig, spring, interpolate } = scope;
+const frame = useCurrentFrame();
+const { fps, width, height } = useVideoConfig();
+const enter = spring({ frame, fps, config: { damping: 18 } });
+const spin = interpolate(frame, [0, 150], [0, Math.PI * 2]);
+return (
+  <AbsoluteFill style={{ backgroundColor: '#0d1117' }}>
+    <ThreeCanvas width={width} height={height} camera={{ position: [0, 0, 6], fov: 45 }}>
+      <ambientLight intensity={0.35} />
+      <directionalLight position={[3, 4, 5]} intensity={1.4} />
+      <mesh rotation={[spin * 0.4, spin, 0]} scale={enter}>
+        <torusKnotGeometry args={[1, 0.32, 200, 32]} />
+        <meshStandardMaterial color={new THREE.Color('#58a6ff')} metalness={0.4} roughness={0.25} />
+      </mesh>
+    </ThreeCanvas>
+    <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 96 }}>
+      <div style={{ opacity: enter, fontSize: 56, fontWeight: 700, color: '#e6edf3' }}>Now in 3D</div>
+    </AbsoluteFill>
+  </AbsoluteFill>
+);
+```
+
 **Code rules:**
 - All animation must be frame-driven (`useCurrentFrame`), not time-based or stateful
 - Use inline styles only — no CSS imports or className
